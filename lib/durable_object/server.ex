@@ -68,6 +68,34 @@ defmodule DurableObject.Server do
   end
 
   @doc """
+  Ensures a Durable Object is started, starting it if necessary.
+
+  Returns `{:ok, pid}` if the object is running or was started successfully.
+  Returns `{:error, reason}` if the object could not be started.
+
+  ## Options
+
+  Options are passed to `start_link/1` when starting a new object.
+  """
+  def ensure_started(module, object_id, opts \\ []) do
+    case whereis(module, object_id) do
+      nil ->
+        start_opts = Keyword.merge(opts, module: module, object_id: object_id)
+        DurableObject.ObjectSupervisor.start_object(start_opts)
+
+      pid ->
+        {:ok, pid}
+    end
+  end
+
+  @doc """
+  Returns the pid of a running Durable Object, or nil if not running.
+  """
+  def whereis(module, object_id) do
+    GenServer.whereis(via_tuple(module, object_id))
+  end
+
+  @doc """
   Returns the via tuple for Registry lookup.
   """
   def via_tuple(module, object_id) do

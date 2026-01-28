@@ -135,4 +135,47 @@ defmodule DurableObject.ServerTest do
                Server.call(CounterHandler, "call-6", :nonexistent)
     end
   end
+
+  describe "ensure_started/3" do
+    test "starts object if not running" do
+      assert Server.whereis(CounterHandler, "ensure-1") == nil
+
+      {:ok, pid} = Server.ensure_started(CounterHandler, "ensure-1")
+
+      assert Process.alive?(pid)
+      assert Server.whereis(CounterHandler, "ensure-1") == pid
+    end
+
+    test "returns existing pid if already running" do
+      {:ok, pid1} = Server.ensure_started(CounterHandler, "ensure-2")
+      {:ok, pid2} = Server.ensure_started(CounterHandler, "ensure-2")
+
+      assert pid1 == pid2
+    end
+
+    test "passes opts to start_link" do
+      {:ok, pid} = Server.ensure_started(CounterHandler, "ensure-3", hibernate_after: 1000)
+
+      assert Process.alive?(pid)
+    end
+
+    test "object is usable after ensure_started" do
+      {:ok, _pid} = Server.ensure_started(CounterHandler, "ensure-4")
+
+      assert {:ok, 1} = Server.call(CounterHandler, "ensure-4", :increment)
+      assert {:ok, 1} = Server.call(CounterHandler, "ensure-4", :get)
+    end
+  end
+
+  describe "whereis/2" do
+    test "returns nil for non-running object" do
+      assert Server.whereis(TestHandler, "whereis-not-running") == nil
+    end
+
+    test "returns pid for running object" do
+      {:ok, pid} = Server.start_link(module: TestHandler, object_id: "whereis-1")
+
+      assert Server.whereis(TestHandler, "whereis-1") == pid
+    end
+  end
 end
