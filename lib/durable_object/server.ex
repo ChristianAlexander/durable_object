@@ -197,6 +197,9 @@ defmodule DurableObject.Server do
 
     if function_exported?(module, handler_fn, length(args) + 1) do
       case apply(module, handler_fn, args ++ [state]) do
+        {:reply, result} ->
+          {:reply, {:ok, result}, schedule_shutdown(server)}
+
         {:reply, result, new_state} ->
           server = %{server | state: new_state}
           if new_state != state, do: persist_state(server)

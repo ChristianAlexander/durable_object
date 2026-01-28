@@ -22,6 +22,10 @@ defmodule DurableObject.ServerTest do
       {:reply, Map.get(state, :count, 0), state}
     end
 
+    def handle_get_readonly(state) do
+      {:reply, Map.get(state, :count, 0)}
+    end
+
     def handle_reset(state) do
       {:noreply, Map.put(state, :count, 0)}
     end
@@ -121,6 +125,14 @@ defmodule DurableObject.ServerTest do
 
       assert {:ok, 1} = Server.call(CounterHandler, id, :increment)
       assert {:ok, 1} = Server.call(CounterHandler, id, :get)
+    end
+
+    test "handles {:reply, result} for read-only operations" do
+      id = unique_id("call")
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: id)
+
+      Server.call(CounterHandler, id, :increment_by, [5])
+      assert {:ok, 5} = Server.call(CounterHandler, id, :get_readonly)
     end
 
     test "handles {:noreply, new_state}" do
