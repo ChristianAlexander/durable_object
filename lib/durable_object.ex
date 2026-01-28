@@ -142,6 +142,114 @@ defmodule DurableObject do
     Application.get_env(:durable_object, :repo)
   end
 
+  @doc """
+  Schedules an alarm to fire after `delay_ms` milliseconds.
+
+  When the alarm fires, `handle_alarm(alarm_name, state)` will be called on
+  the object's module. If no `handle_alarm/2` is defined, the alarm is
+  silently acknowledged.
+
+  ## Options
+
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
+
+  ## Examples
+
+      # Schedule an alarm to fire in 1 hour
+      :ok = DurableObject.schedule_alarm(Counter, "user-123", :cleanup, :timer.hours(1))
+
+  ## Handler
+
+  Define `handle_alarm/2` in your module:
+
+      def handle_alarm(:cleanup, state) do
+        # Do cleanup
+        {:noreply, state}
+      end
+
+      def handle_alarm(:daily_reset, state) do
+        # Reset and reschedule
+        {:noreply, %{state | count: 0}, {:schedule_alarm, :daily_reset, :timer.hours(24)}}
+      end
+  """
+  def schedule_alarm(module, object_id, alarm_name, delay_ms, opts \\ []) do
+    opts = merge_default_repo(opts)
+    scheduler = Application.get_env(:durable_object, :scheduler, DurableObject.Scheduler.Polling)
+    scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
+
+    merged_opts = Keyword.merge(scheduler_opts, opts)
+    scheduler.schedule({module, object_id}, alarm_name, delay_ms, merged_opts)
+  end
+
+  @doc """
+  Cancels a pending alarm.
+
+  Returns `:ok` even if the alarm doesn't exist.
+
+  ## Options
+
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
+
+  ## Examples
+
+      :ok = DurableObject.cancel_alarm(Counter, "user-123", :cleanup)
+  """
+  def cancel_alarm(module, object_id, alarm_name, opts \\ []) do
+    opts = merge_default_repo(opts)
+    scheduler = Application.get_env(:durable_object, :scheduler, DurableObject.Scheduler.Polling)
+    scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
+
+    merged_opts = Keyword.merge(scheduler_opts, opts)
+    scheduler.cancel({module, object_id}, alarm_name, merged_opts)
+  end
+
+  @doc """
+  Cancels all pending alarms for an object.
+
+  ## Options
+
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
+
+  ## Examples
+
+      :ok = DurableObject.cancel_all_alarms(Counter, "user-123")
+  """
+  def cancel_all_alarms(module, object_id, opts \\ []) do
+    opts = merge_default_repo(opts)
+    scheduler = Application.get_env(:durable_object, :scheduler, DurableObject.Scheduler.Polling)
+    scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
+
+    merged_opts = Keyword.merge(scheduler_opts, opts)
+    scheduler.cancel_all({module, object_id}, merged_opts)
+  end
+
+  @doc """
+  Lists all pending alarms for an object.
+
+  Returns a list of `{alarm_name, scheduled_at}` tuples, ordered by scheduled time.
+
+  ## Options
+
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
+
+  ## Examples
+
+      {:ok, alarms} = DurableObject.list_alarms(Counter, "user-123")
+      # => [{:cleanup, ~U[2024-01-15 10:30:00Z]}, {:daily_reset, ~U[2024-01-16 00:00:00Z]}]
+  """
+  def list_alarms(module, object_id, opts \\ []) do
+    opts = merge_default_repo(opts)
+    scheduler = Application.get_env(:durable_object, :scheduler, DurableObject.Scheduler.Polling)
+    scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
+
+    merged_opts = Keyword.merge(scheduler_opts, opts)
+    scheduler.list({module, object_id}, merged_opts)
+  end
+
   # --- Private Functions ---
 
   defp merge_default_repo(opts) do

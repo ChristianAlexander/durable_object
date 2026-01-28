@@ -164,6 +164,33 @@ defmodule DurableObject.Server do
   end
 
   @impl GenServer
+  def handle_call({:call, :__fire_alarm__, [alarm_name]}, _from, server) do
+    # Special handler for firing alarms from the scheduler
+    %{module: module, state: state} = server
+
+    if function_exported?(module, :handle_alarm, 2) do
+      case apply(module, :handle_alarm, [alarm_name, state]) do
+        {:noreply, new_state} ->
+          server = %{server | state: new_state}
+          persist_state(server)
+          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+
+        {:noreply, new_state, {:schedule_alarm, name, delay}} ->
+          server = %{server | state: new_state}
+          persist_state(server)
+          schedule_alarm(server, name, delay)
+          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+
+        {:error, reason} ->
+          {:reply, {:error, reason}, schedule_shutdown(server)}
+      end
+    else
+      # No alarm handler defined, just acknowledge
+      {:reply, {:ok, :no_handler}, schedule_shutdown(server)}
+    end
+  end
+
+  @impl GenServer
   def handle_call({:call, handler, args}, _from, server) do
     %{module: module, state: state} = server
     handler_fn = :"handle_#{handler}"
@@ -175,9 +202,21 @@ defmodule DurableObject.Server do
           persist_state(server)
           {:reply, {:ok, result}, schedule_shutdown(server)}
 
+        {:reply, result, new_state, {:schedule_alarm, name, delay}} ->
+          server = %{server | state: new_state}
+          persist_state(server)
+          schedule_alarm(server, name, delay)
+          {:reply, {:ok, result}, schedule_shutdown(server)}
+
         {:noreply, new_state} ->
           server = %{server | state: new_state}
           persist_state(server)
+          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+
+        {:noreply, new_state, {:schedule_alarm, name, delay}} ->
+          server = %{server | state: new_state}
+          persist_state(server)
+          schedule_alarm(server, name, delay)
           {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
         {:error, reason} ->
@@ -225,5 +264,16 @@ defmodule DurableObject.Server do
     if old_timer, do: Process.cancel_timer(old_timer)
     timer = Process.send_after(self(), :shutdown_timeout, timeout)
     %{server | shutdown_timer: timer}
+  end
+
+  defp schedule_alarm(%{repo: nil}, _name, _delay), do: :ok
+
+  defp schedule_alarm(server, name, delay) do
+    %{module: module, object_id: object_id, repo: repo, prefix: prefix} = server
+    scheduler = Application.get_env(:durable_object, :scheduler, DurableObject.Scheduler.Polling)
+    scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
+
+    opts = Keyword.merge(scheduler_opts, repo: repo, prefix: prefix)
+    scheduler.schedule({module, object_id}, name, delay, opts)
   end
 end
