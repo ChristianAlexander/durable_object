@@ -128,4 +128,17 @@ defmodule DurableObjectTest do
       {:ok, 1} = DurableObject.call(Counter, "lifecycle-1", :increment)
     end
   end
+
+  describe "default_repo/0" do
+    test "returns nil when not configured" do
+      # Clean up any existing config
+      original = Application.get_env(:durable_object, :repo)
+      Application.delete_env(:durable_object, :repo)
+
+      assert DurableObject.default_repo() == nil
+
+      # Restore
+      if original, do: Application.put_env(:durable_object, :repo, original)
+    end
+  end
 end

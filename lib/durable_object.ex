@@ -38,6 +38,8 @@ defmodule DurableObject do
 
   ## Options
 
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
     * `:hibernate_after` - Hibernate after this many ms of inactivity (default: 5 minutes)
     * `:shutdown_after` - Stop process after this many ms of inactivity (default: nil)
     * `:timeout` - Call timeout in ms (default: 5000)
@@ -52,10 +54,13 @@ defmodule DurableObject do
 
       {:ok, 1} = DurableObject.call(Counter, "test", :increment)
       {:ok, 5} = DurableObject.call(Counter, "test", :increment, [5])
+
+      # With persistence
+      {:ok, 1} = DurableObject.call(Counter, "test", :increment, [], repo: MyApp.Repo)
   """
   def call(module, object_id, handler, args \\ [], opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 5000)
-    start_opts = Keyword.drop(opts, [:timeout])
+    start_opts = opts |> Keyword.drop([:timeout]) |> merge_default_repo()
 
     case Server.ensure_started(module, object_id, start_opts) do
       {:ok, _pid} ->
@@ -86,6 +91,8 @@ defmodule DurableObject do
 
   ## Options
 
+    * `:repo` - Ecto repo for persistence (default: configured or nil)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
     * `:hibernate_after` - Hibernate after this many ms of inactivity (default: 5 minutes)
     * `:shutdown_after` - Stop process after this many ms of inactivity (default: nil)
 
@@ -94,7 +101,10 @@ defmodule DurableObject do
       {:ok, pid} = DurableObject.ensure_started(Counter, "test")
       {:ok, ^pid} = DurableObject.ensure_started(Counter, "test")
   """
-  defdelegate ensure_started(module, object_id, opts \\ []), to: Server
+  def ensure_started(module, object_id, opts \\ []) do
+    opts = merge_default_repo(opts)
+    Server.ensure_started(module, object_id, opts)
+  end
 
   @doc """
   Stops a running Durable Object.
@@ -120,4 +130,30 @@ defmodule DurableObject do
       pid = DurableObject.whereis(Counter, "test")
   """
   defdelegate whereis(module, object_id), to: Server
+
+  @doc """
+  Returns the configured default repo, or nil if not configured.
+
+  Configure in your application config:
+
+      config :durable_object, repo: MyApp.Repo
+  """
+  def default_repo do
+    Application.get_env(:durable_object, :repo)
+  end
+
+  # --- Private Functions ---
+
+  defp merge_default_repo(opts) do
+    case Keyword.get(opts, :repo) do
+      nil ->
+        case default_repo() do
+          nil -> opts
+          repo -> Keyword.put(opts, :repo, repo)
+        end
+
+      _repo ->
+        opts
+    end
+  end
 end
