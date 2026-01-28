@@ -43,7 +43,7 @@ defmodule DurableObject.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
       nest_modules_by_prefix: [
         DurableObject.Cluster,
         DurableObject.Dsl,
