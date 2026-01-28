@@ -100,5 +100,26 @@ defmodule DurableObject.Dsl.VerifiersTest do
       refute output =~ "`handle_add/3` is not defined"
       assert Code.ensure_loaded?(DurableObject.Dsl.VerifiersTest.CorrectArityHandler)
     end
+
+    test "rejects reserved handler name :alarm" do
+      output =
+        capture_io(:stderr, fn ->
+          defmodule ReservedAlarmHandler do
+            use DurableObject.Dsl
+
+            state do
+              field(:count, :integer, default: 0)
+            end
+
+            handlers do
+              handler(:alarm)
+            end
+
+            def handle_alarm(_state), do: {:reply, :ok, %{}}
+          end
+        end)
+
+      assert output =~ "reserved"
+    end
   end
 end
