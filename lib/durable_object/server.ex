@@ -6,7 +6,7 @@ defmodule DurableObject.Server do
 
   @default_hibernate_after :timer.minutes(5)
 
-  defstruct [:module, :object_id, :state, :shutdown_after, :shutdown_timer]
+  defstruct [:module, :object_id, :state, :shutdown_after, :shutdown_timer, :repo, :prefix]
 
   # --- Client API ---
 
@@ -19,6 +19,8 @@ defmodule DurableObject.Server do
     * `:object_id` - The unique identifier for this object (required)
     * `:hibernate_after` - Hibernate after this many ms of inactivity (default: 5 minutes)
     * `:shutdown_after` - Stop process after this many ms of inactivity (default: nil, no shutdown)
+    * `:repo` - Ecto repo for persistence (default: nil, no persistence)
+    * `:prefix` - Table prefix for multi-tenancy (default: nil)
 
   """
   def start_link(opts) do
@@ -110,16 +112,43 @@ defmodule DurableObject.Server do
     module = Keyword.fetch!(opts, :module)
     object_id = Keyword.fetch!(opts, :object_id)
     shutdown_after = Keyword.get(opts, :shutdown_after)
+    repo = Keyword.get(opts, :repo)
+    prefix = Keyword.get(opts, :prefix)
 
     server = %__MODULE__{
       module: module,
       object_id: object_id,
       state: %{},
       shutdown_after: shutdown_after,
-      shutdown_timer: nil
+      shutdown_timer: nil,
+      repo: repo,
+      prefix: prefix
     }
 
-    {:ok, schedule_shutdown(server)}
+    if repo do
+      {:ok, server, {:continue, :load_state}}
+    else
+      {:ok, schedule_shutdown(server)}
+    end
+  end
+
+  @impl GenServer
+  def handle_continue(:load_state, server) do
+    %{repo: repo, module: module, object_id: object_id, prefix: prefix} = server
+    object_type = to_string(module)
+
+    server =
+      case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
+        {:ok, nil} ->
+          # New object - persist initial empty state
+          DurableObject.Storage.save(repo, object_type, object_id, %{}, prefix: prefix)
+          server
+
+        {:ok, object} ->
+          %{server | state: object.state}
+      end
+
+    {:noreply, schedule_shutdown(server)}
   end
 
   @impl GenServer
@@ -129,7 +158,9 @@ defmodule DurableObject.Server do
 
   @impl GenServer
   def handle_call({:put_state, new_state}, _from, server) do
-    {:reply, :ok, schedule_shutdown(%{server | state: new_state})}
+    server = %{server | state: new_state}
+    persist_state(server)
+    {:reply, :ok, schedule_shutdown(server)}
   end
 
   @impl GenServer
@@ -140,10 +171,14 @@ defmodule DurableObject.Server do
     if function_exported?(module, handler_fn, length(args) + 1) do
       case apply(module, handler_fn, args ++ [state]) do
         {:reply, result, new_state} ->
-          {:reply, {:ok, result}, schedule_shutdown(%{server | state: new_state})}
+          server = %{server | state: new_state}
+          persist_state(server)
+          {:reply, {:ok, result}, schedule_shutdown(server)}
 
         {:noreply, new_state} ->
-          {:reply, {:ok, :noreply}, schedule_shutdown(%{server | state: new_state})}
+          server = %{server | state: new_state}
+          persist_state(server)
+          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
         {:error, reason} ->
           {:reply, {:error, reason}, schedule_shutdown(server)}
@@ -158,7 +193,31 @@ defmodule DurableObject.Server do
     {:stop, :normal, server}
   end
 
+  @impl GenServer
+  def terminate(_reason, server) do
+    release_lock(server)
+    :ok
+  end
+
   # --- Private Functions ---
+
+  defp persist_state(%{repo: nil}), do: :ok
+
+  defp persist_state(server) do
+    %{repo: repo, module: module, object_id: object_id, state: state, prefix: prefix} = server
+    object_type = to_string(module)
+    DurableObject.Storage.save(repo, object_type, object_id, state, prefix: prefix)
+    :ok
+  end
+
+  defp release_lock(%{repo: nil}), do: :ok
+
+  defp release_lock(server) do
+    %{repo: repo, module: module, object_id: object_id, prefix: prefix} = server
+    object_type = to_string(module)
+    DurableObject.Storage.release_lock(repo, object_type, object_id, prefix: prefix)
+    :ok
+  end
 
   defp schedule_shutdown(%{shutdown_after: nil} = server), do: server
 
