@@ -35,6 +35,7 @@ defmodule DurableObject.MixProject do
     [
       {:telemetry, "~> 1.0"},
       {:ecto_sql, "~> 3.10"},
+      {:spark, "~> 2.0"},
       {:ecto_sqlite3, "~> 0.17", only: [:dev, :test]},
       {:jason, "~> 1.4", only: [:dev, :test]},
       {:horde, "~> 0.9", optional: true}

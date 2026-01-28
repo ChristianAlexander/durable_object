@@ -175,7 +175,10 @@ defmodule DurableObject.Scheduler.Polling do
       module = String.to_existing_atom(object_type)
       alarm = String.to_existing_atom(alarm_name)
 
-      case DurableObject.call(module, object_id, :__fire_alarm__, [alarm], repo: repo, prefix: prefix) do
+      case DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
+             repo: repo,
+             prefix: prefix
+           ) do
         {:ok, _} ->
           # Delete the alarm after successful firing
           from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
