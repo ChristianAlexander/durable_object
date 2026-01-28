@@ -6,6 +6,7 @@ defmodule DurableObject.SchedulerTest do
   alias DurableObject.TestRepo
 
   import Ecto.Query
+  import DurableObject.TestHelpers
 
   @moduletag :scheduler
 
@@ -41,12 +42,13 @@ defmodule DurableObject.SchedulerTest do
 
   describe "Polling.schedule/4" do
     test "schedules an alarm in the database" do
+      id = unique_id("sched")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-1"}, :my_alarm, 1000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :my_alarm, 1000, opts)
 
       alarms =
-        from(a in Alarm, where: a.object_id == "test-1")
+        from(a in Alarm, where: a.object_id == ^id)
         |> DurableObject.TestRepo.all()
 
       assert length(alarms) == 1
@@ -58,13 +60,14 @@ defmodule DurableObject.SchedulerTest do
     end
 
     test "replaces existing alarm with same name" do
+      id = unique_id("sched")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-2"}, :my_alarm, 5000, opts)
-      :ok = Polling.schedule({TestCounter, "test-2"}, :my_alarm, 1000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :my_alarm, 5000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :my_alarm, 1000, opts)
 
       alarms =
-        from(a in Alarm, where: a.object_id == "test-2")
+        from(a in Alarm, where: a.object_id == ^id)
         |> DurableObject.TestRepo.all()
 
       assert length(alarms) == 1
@@ -74,13 +77,14 @@ defmodule DurableObject.SchedulerTest do
     end
 
     test "allows multiple different alarms for same object" do
+      id = unique_id("sched")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-3"}, :alarm_a, 1000, opts)
-      :ok = Polling.schedule({TestCounter, "test-3"}, :alarm_b, 2000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_a, 1000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_b, 2000, opts)
 
       alarms =
-        from(a in Alarm, where: a.object_id == "test-3", order_by: a.alarm_name)
+        from(a in Alarm, where: a.object_id == ^id, order_by: a.alarm_name)
         |> DurableObject.TestRepo.all()
 
       assert length(alarms) == 2
@@ -90,13 +94,14 @@ defmodule DurableObject.SchedulerTest do
 
   describe "Polling.cancel/4" do
     test "cancels a scheduled alarm" do
+      id = unique_id("cancel")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-4"}, :my_alarm, 1000, opts)
-      :ok = Polling.cancel({TestCounter, "test-4"}, :my_alarm, opts)
+      :ok = Polling.schedule({TestCounter, id}, :my_alarm, 1000, opts)
+      :ok = Polling.cancel({TestCounter, id}, :my_alarm, opts)
 
       alarms =
-        from(a in Alarm, where: a.object_id == "test-4")
+        from(a in Alarm, where: a.object_id == ^id)
         |> DurableObject.TestRepo.all()
 
       assert alarms == []
@@ -104,20 +109,21 @@ defmodule DurableObject.SchedulerTest do
 
     test "returns :ok even if alarm doesn't exist" do
       opts = [repo: DurableObject.TestRepo]
-      assert :ok = Polling.cancel({TestCounter, "nonexistent"}, :no_alarm, opts)
+      assert :ok = Polling.cancel({TestCounter, unique_id("cancel")}, :no_alarm, opts)
     end
   end
 
   describe "Polling.cancel_all/3" do
     test "cancels all alarms for an object" do
+      id = unique_id("cancel-all")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-5"}, :alarm_a, 1000, opts)
-      :ok = Polling.schedule({TestCounter, "test-5"}, :alarm_b, 2000, opts)
-      :ok = Polling.cancel_all({TestCounter, "test-5"}, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_a, 1000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_b, 2000, opts)
+      :ok = Polling.cancel_all({TestCounter, id}, opts)
 
       alarms =
-        from(a in Alarm, where: a.object_id == "test-5")
+        from(a in Alarm, where: a.object_id == ^id)
         |> DurableObject.TestRepo.all()
 
       assert alarms == []
@@ -126,12 +132,13 @@ defmodule DurableObject.SchedulerTest do
 
   describe "Polling.list/3" do
     test "lists all alarms for an object" do
+      id = unique_id("list")
       opts = [repo: DurableObject.TestRepo]
 
-      :ok = Polling.schedule({TestCounter, "test-6"}, :alarm_a, 1000, opts)
-      :ok = Polling.schedule({TestCounter, "test-6"}, :alarm_b, 2000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_a, 1000, opts)
+      :ok = Polling.schedule({TestCounter, id}, :alarm_b, 2000, opts)
 
-      {:ok, alarms} = Polling.list({TestCounter, "test-6"}, opts)
+      {:ok, alarms} = Polling.list({TestCounter, id}, opts)
 
       assert length(alarms) == 2
       assert Enum.map(alarms, &elem(&1, 0)) == [:alarm_a, :alarm_b]
@@ -139,13 +146,14 @@ defmodule DurableObject.SchedulerTest do
 
     test "returns empty list when no alarms exist" do
       opts = [repo: DurableObject.TestRepo]
-      {:ok, alarms} = Polling.list({TestCounter, "nonexistent"}, opts)
+      {:ok, alarms} = Polling.list({TestCounter, unique_id("list")}, opts)
       assert alarms == []
     end
   end
 
   describe "Poller" do
     test "fires overdue alarms" do
+      id = unique_id("poll")
       opts = [repo: TestRepo]
 
       # Start our own test poller with the test repo
@@ -153,14 +161,14 @@ defmodule DurableObject.SchedulerTest do
         DurableObject.Scheduler.Polling.Poller.start_link(
           repo: TestRepo,
           polling_interval: :timer.seconds(60),
-          name: :test_poller
+          name: :"test_poller_#{System.unique_integer([:positive])}"
         )
 
       # Start the object first
-      {:ok, _pid} = DurableObject.ensure_started(TestCounter, "poll-test", opts)
+      {:ok, _pid} = DurableObject.ensure_started(TestCounter, id, opts)
 
       # Schedule an alarm that's already overdue
-      :ok = Polling.schedule({TestCounter, "poll-test"}, :test_alarm, 0, opts)
+      :ok = Polling.schedule({TestCounter, id}, :test_alarm, 0, opts)
 
       # Manually trigger the poller
       send(poller, :check_alarms)
@@ -169,11 +177,11 @@ defmodule DurableObject.SchedulerTest do
       Process.sleep(100)
 
       # The alarm should have fired and been deleted
-      {:ok, alarms} = Polling.list({TestCounter, "poll-test"}, opts)
+      {:ok, alarms} = Polling.list({TestCounter, id}, opts)
       assert alarms == []
 
       # And the alarm handler should have updated state
-      state = DurableObject.get_state(TestCounter, "poll-test")
+      state = DurableObject.get_state(TestCounter, id)
       assert Map.get(state, :alarm_count, 0) == 1
 
       # Clean up

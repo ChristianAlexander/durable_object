@@ -1,5 +1,6 @@
 defmodule DurableObject.ClusterTest do
-  use ExUnit.Case, async: true
+  # async: false because tests modify global Application config
+  use ExUnit.Case, async: false
 
   alias DurableObject.Cluster
   alias DurableObject.Cluster.Local
@@ -122,17 +123,14 @@ defmodule DurableObject.ClusterTest do
     end
 
     test "count_objects works through Cluster abstraction" do
-      # Get initial count
-      initial_count = DurableObject.ObjectSupervisor.count_objects()
-      assert is_integer(initial_count)
-      assert initial_count >= 0
+      {:ok, sup} = DynamicSupervisor.start_link(strategy: :one_for_one)
 
-      # Start an object and verify count increased
-      opts = [module: TestCounter, object_id: "cluster-count-#{System.unique_integer()}"]
+      assert DurableObject.ObjectSupervisor.count_objects(supervisor: sup) == 0
+
+      opts = [module: TestCounter, object_id: "cluster-count-#{System.unique_integer()}", supervisor: sup]
       {:ok, _pid} = DurableObject.ObjectSupervisor.start_object(opts)
 
-      new_count = DurableObject.ObjectSupervisor.count_objects()
-      assert new_count == initial_count + 1
+      assert DurableObject.ObjectSupervisor.count_objects(supervisor: sup) == 1
     end
   end
 end
