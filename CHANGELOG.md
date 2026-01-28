@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Lifecycle guide with Mermaid diagrams covering all phases from startup through shutdown
 - Mermaid diagram rendering support in ExDoc
+- `usage-rules.md` for LLM agent guidance via the usageRules ecosystem
 
 ## [0.1.4] - 2026-01-27
 
