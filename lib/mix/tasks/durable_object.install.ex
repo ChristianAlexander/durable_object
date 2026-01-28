@@ -98,7 +98,7 @@ if Code.ensure_loaded?(Igniter) do
 
       base_config = [
         repo: repo,
-        cluster: if(distributed, do: :horde, else: :local)
+        registry_mode: if(distributed, do: :horde, else: :local)
       ]
 
       scheduler_config =
