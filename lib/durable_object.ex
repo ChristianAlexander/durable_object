@@ -10,7 +10,46 @@ defmodule DurableObject do
   - Optionally shuts down after extended inactivity
   - Dispatches calls to `handle_<name>/N` functions on the module
 
-  ## Example
+  ## Using the DSL
+
+  The recommended way to define Durable Objects is with the Spark DSL:
+
+      defmodule MyApp.Counter do
+        use DurableObject
+
+        state do
+          field :count, :integer, default: 0
+        end
+
+        handlers do
+          handler :increment, args: [:amount]
+          handler :get
+        end
+
+        options do
+          hibernate_after 300_000
+        end
+
+        @impl DurableObject.Behaviour
+        def handle_increment(amount, state) do
+          new_count = state.count + amount
+          {:reply, new_count, %{state | count: new_count}}
+        end
+
+        @impl DurableObject.Behaviour
+        def handle_get(state) do
+          {:reply, state.count, state}
+        end
+      end
+
+  The DSL generates client API functions automatically:
+
+      {:ok, count} = MyApp.Counter.increment("user-123", 5)
+      {:ok, count} = MyApp.Counter.get("user-123")
+
+  ## Manual Usage (without DSL)
+
+  You can also call Durable Objects directly without the DSL:
 
       defmodule Counter do
         def handle_increment(n \\\\ 1, state) do
@@ -29,6 +68,45 @@ defmodule DurableObject do
   """
 
   alias DurableObject.Server
+
+  @doc """
+  Use DurableObject to define a Durable Object with the Spark DSL.
+
+  This enables the declarative DSL for defining state fields, handlers,
+  and lifecycle options.
+
+  ## Example
+
+      defmodule MyApp.Counter do
+        use DurableObject
+
+        state do
+          field :count, :integer, default: 0
+        end
+
+        handlers do
+          handler :increment, args: [:amount]
+          handler :get
+        end
+
+        @impl DurableObject.Behaviour
+        def handle_increment(amount, state) do
+          new_count = state.count + amount
+          {:reply, new_count, %{state | count: new_count}}
+        end
+
+        @impl DurableObject.Behaviour
+        def handle_get(state) do
+          {:reply, state.count, state}
+        end
+      end
+  """
+  defmacro __using__(_opts) do
+    quote do
+      use DurableObject.Dsl
+      @behaviour DurableObject.Behaviour
+    end
+  end
 
   @doc """
   Calls a handler on a Durable Object, starting it if necessary.
