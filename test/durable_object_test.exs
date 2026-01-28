@@ -3,22 +3,35 @@ defmodule DurableObjectTest do
   import DurableObject.TestHelpers
 
   defmodule Counter do
+    use DurableObject
+
+    state do
+      field(:count, :integer, default: 0)
+    end
+
+    handlers do
+      handler(:increment)
+      handler(:increment_by, args: [:n])
+      handler(:get)
+      handler(:reset)
+    end
+
     def handle_increment(state) do
-      new_count = Map.get(state, :count, 0) + 1
-      {:reply, new_count, Map.put(state, :count, new_count)}
+      new_count = state.count + 1
+      {:reply, new_count, %{state | count: new_count}}
     end
 
     def handle_increment_by(n, state) do
-      new_count = Map.get(state, :count, 0) + n
-      {:reply, new_count, Map.put(state, :count, new_count)}
+      new_count = state.count + n
+      {:reply, new_count, %{state | count: new_count}}
     end
 
     def handle_get(state) do
-      {:reply, Map.get(state, :count, 0), state}
+      {:reply, state.count, state}
     end
 
     def handle_reset(state) do
-      {:noreply, Map.put(state, :count, 0)}
+      {:noreply, %{state | count: 0}}
     end
   end
 
@@ -62,7 +75,8 @@ defmodule DurableObjectTest do
     end
 
     test "accepts hibernate_after option" do
-      {:ok, _} = DurableObject.call(Counter, unique_id("counter"), :increment, [], hibernate_after: 1000)
+      {:ok, _} =
+        DurableObject.call(Counter, unique_id("counter"), :increment, [], hibernate_after: 1000)
     end
 
     test "accepts shutdown_after option" do

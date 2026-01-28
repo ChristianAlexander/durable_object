@@ -4,7 +4,27 @@ defmodule DurableObject.ClusterTest do
 
   alias DurableObject.Cluster
   alias DurableObject.Cluster.Local
-  alias DurableObject.Cluster.Horde, as: HordeBackend
+
+  defmodule TestCounter do
+    use DurableObject
+
+    state do
+      field(:count, :integer, default: 0)
+    end
+
+    handlers do
+      handler(:increment)
+      handler(:get)
+    end
+
+    def handle_increment(state) do
+      {:reply, state.count + 1, %{state | count: state.count + 1}}
+    end
+
+    def handle_get(state) do
+      {:reply, state.count, state}
+    end
+  end
 
   describe "mode/0" do
     test "defaults to :local" do
@@ -50,17 +70,39 @@ defmodule DurableObject.ClusterTest do
       end
     end
 
-    test "returns Horde for horde mode" do
-      original = Application.get_env(:durable_object, :registry_mode)
+    if Code.ensure_loaded?(Horde) do
+      test "returns Horde for horde mode" do
+        original = Application.get_env(:durable_object, :registry_mode)
 
-      try do
-        Application.put_env(:durable_object, :registry_mode, :horde)
-        assert Cluster.impl() == HordeBackend
-      after
-        if original do
-          Application.put_env(:durable_object, :registry_mode, original)
-        else
-          Application.delete_env(:durable_object, :registry_mode)
+        try do
+          Application.put_env(:durable_object, :registry_mode, :horde)
+          assert Cluster.impl() == DurableObject.Cluster.Horde
+        after
+          if original do
+            Application.put_env(:durable_object, :registry_mode, original)
+          else
+            Application.delete_env(:durable_object, :registry_mode)
+          end
+        end
+      end
+    end
+
+    test "raises helpful error for horde mode without Horde installed" do
+      unless Code.ensure_loaded?(Horde) do
+        original = Application.get_env(:durable_object, :registry_mode)
+
+        try do
+          Application.put_env(:durable_object, :registry_mode, :horde)
+
+          assert_raise RuntimeError, ~r/Horde mode requires the :horde dependency/, fn ->
+            Cluster.impl()
+          end
+        after
+          if original do
+            Application.put_env(:durable_object, :registry_mode, original)
+          else
+            Application.delete_env(:durable_object, :registry_mode)
+          end
         end
       end
     end
@@ -105,11 +147,14 @@ defmodule DurableObject.ClusterTest do
     end
   end
 
-  describe "Horde backend" do
-    test "generates correct via_tuple format" do
-      # This doesn't require Horde to be installed since it just builds a tuple
-      via = HordeBackend.via_tuple(MyModule, "object-123")
-      assert {:via, Horde.Registry, {DurableObject.HordeRegistry, {MyModule, "object-123"}}} = via
+  if Code.ensure_loaded?(Horde) do
+    describe "Horde backend" do
+      test "generates correct via_tuple format" do
+        via = DurableObject.Cluster.Horde.via_tuple(MyModule, "object-123")
+
+        assert {:via, Horde.Registry, {DurableObject.HordeRegistry, {MyModule, "object-123"}}} =
+                 via
+      end
     end
   end
 
@@ -127,7 +172,12 @@ defmodule DurableObject.ClusterTest do
 
       assert DurableObject.ObjectSupervisor.count_objects(supervisor: sup) == 0
 
-      opts = [module: TestCounter, object_id: "cluster-count-#{System.unique_integer()}", supervisor: sup]
+      opts = [
+        module: TestCounter,
+        object_id: "cluster-count-#{System.unique_integer()}",
+        supervisor: sup
+      ]
+
       {:ok, _pid} = DurableObject.ObjectSupervisor.start_object(opts)
 
       assert DurableObject.ObjectSupervisor.count_objects(supervisor: sup) == 1

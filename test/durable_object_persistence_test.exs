@@ -5,13 +5,24 @@ defmodule DurableObjectPersistenceTest do
   import DurableObject.TestHelpers
 
   defmodule PersistentCounter do
+    use DurableObject
+
+    state do
+      field(:count, :integer, default: 0)
+    end
+
+    handlers do
+      handler(:increment)
+      handler(:get)
+    end
+
     def handle_increment(state) do
-      new_count = Map.get(state, "count", 0) + 1
-      {:reply, new_count, Map.put(state, "count", new_count)}
+      new_count = state.count + 1
+      {:reply, new_count, %{state | count: new_count}}
     end
 
     def handle_get(state) do
-      {:reply, Map.get(state, "count", 0), state}
+      {:reply, state.count, state}
     end
   end
 
@@ -64,7 +75,7 @@ defmodule DurableObjectPersistenceTest do
     test "loads state from database" do
       id = unique_id("api-ensure")
 
-      # Pre-populate
+      # Pre-populate with string keys (as they'd be stored in JSON)
       {:ok, _} =
         DurableObject.Storage.save(TestRepo, "#{PersistentCounter}", id, %{
           "count" => 100

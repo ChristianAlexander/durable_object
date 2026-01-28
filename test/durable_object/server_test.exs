@@ -5,29 +5,57 @@ defmodule DurableObject.ServerTest do
   import DurableObject.TestHelpers
 
   defmodule TestHandler do
-  end
+    use DurableObject
 
-  defmodule CounterHandler do
-    def handle_increment(state) do
-      new_count = Map.get(state, :count, 0) + 1
-      {:reply, new_count, Map.put(state, :count, new_count)}
+    state do
+      field(:data, :string, default: nil)
     end
 
-    def handle_increment_by(amount, state) do
-      new_count = Map.get(state, :count, 0) + amount
-      {:reply, new_count, Map.put(state, :count, new_count)}
+    handlers do
+      handler(:get)
     end
 
     def handle_get(state) do
-      {:reply, Map.get(state, :count, 0), state}
+      {:reply, state, state}
+    end
+  end
+
+  defmodule CounterHandler do
+    use DurableObject
+
+    state do
+      field(:count, :integer, default: 0)
+    end
+
+    handlers do
+      handler(:increment)
+      handler(:increment_by, args: [:amount])
+      handler(:get)
+      handler(:get_readonly)
+      handler(:reset)
+      handler(:fail)
+    end
+
+    def handle_increment(state) do
+      new_count = state.count + 1
+      {:reply, new_count, %{state | count: new_count}}
+    end
+
+    def handle_increment_by(amount, state) do
+      new_count = state.count + amount
+      {:reply, new_count, %{state | count: new_count}}
+    end
+
+    def handle_get(state) do
+      {:reply, state.count, state}
     end
 
     def handle_get_readonly(state) do
-      {:reply, Map.get(state, :count, 0)}
+      {:reply, state.count}
     end
 
     def handle_reset(state) do
-      {:noreply, Map.put(state, :count, 0)}
+      {:noreply, %{state | count: 0}}
     end
 
     def handle_fail(_state) do
@@ -76,29 +104,30 @@ defmodule DurableObject.ServerTest do
   end
 
   describe "get_state/2 and put_state/3" do
-    test "initial state is empty map" do
+    test "initial state has default values" do
       id = unique_id("state")
       {:ok, _pid} = Server.start_link(module: TestHandler, object_id: id)
 
-      assert Server.get_state(TestHandler, id) == %{}
+      state = Server.get_state(TestHandler, id)
+      assert state.data == nil
     end
 
     test "put_state updates state" do
       id = unique_id("state")
-      {:ok, _pid} = Server.start_link(module: TestHandler, object_id: id)
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: id)
 
-      assert :ok = Server.put_state(TestHandler, id, %{count: 5})
-      assert Server.get_state(TestHandler, id) == %{count: 5}
+      assert :ok = Server.put_state(CounterHandler, id, %{count: 5})
+      assert Server.get_state(CounterHandler, id) == %{count: 5}
     end
 
     test "put_state replaces entire state" do
       id = unique_id("state")
-      {:ok, _pid} = Server.start_link(module: TestHandler, object_id: id)
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: id)
 
-      Server.put_state(TestHandler, id, %{a: 1, b: 2})
-      Server.put_state(TestHandler, id, %{c: 3})
+      Server.put_state(CounterHandler, id, %{count: 1})
+      Server.put_state(CounterHandler, id, %{count: 3})
 
-      assert Server.get_state(TestHandler, id) == %{c: 3}
+      assert Server.get_state(CounterHandler, id) == %{count: 3}
     end
   end
 
@@ -211,7 +240,11 @@ defmodule DurableObject.ServerTest do
   describe "shutdown_after" do
     test "process shuts down after timeout" do
       {:ok, pid} =
-        Server.start_link(module: TestHandler, object_id: unique_id("shutdown"), shutdown_after: 50)
+        Server.start_link(
+          module: TestHandler,
+          object_id: unique_id("shutdown"),
+          shutdown_after: 50
+        )
 
       assert Process.alive?(pid)
       Process.sleep(100)
@@ -220,6 +253,7 @@ defmodule DurableObject.ServerTest do
 
     test "activity resets shutdown timer" do
       id = unique_id("shutdown")
+
       {:ok, pid} =
         Server.start_link(module: CounterHandler, object_id: id, shutdown_after: 100)
 
@@ -238,7 +272,11 @@ defmodule DurableObject.ServerTest do
 
     test "nil shutdown_after means no auto-shutdown" do
       {:ok, pid} =
-        Server.start_link(module: TestHandler, object_id: unique_id("shutdown"), shutdown_after: nil)
+        Server.start_link(
+          module: TestHandler,
+          object_id: unique_id("shutdown"),
+          shutdown_after: nil
+        )
 
       Process.sleep(50)
       assert Process.alive?(pid)
