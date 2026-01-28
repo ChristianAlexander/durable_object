@@ -26,8 +26,6 @@ defmodule DurableObject.Cluster do
 
   """
 
-  alias DurableObject.Cluster.{Local, Horde}
-
   @type mode :: :local | :horde
 
   @doc """
@@ -44,10 +42,35 @@ defmodule DurableObject.Cluster do
   Returns the backend module for the current mode.
   """
   @spec impl() :: module()
-  def impl do
-    case mode() do
-      :local -> Local
-      :horde -> Horde
+  if Code.ensure_loaded?(Horde) do
+    def impl do
+      case mode() do
+        :local -> DurableObject.Cluster.Local
+        :horde -> DurableObject.Cluster.Horde
+      end
+    end
+  else
+    def impl do
+      case mode() do
+        :local ->
+          DurableObject.Cluster.Local
+
+        :horde ->
+          raise """
+          Horde mode requires the :horde dependency.
+
+          Add {:horde, "~> 0.9"} to your dependencies:
+
+              defp deps do
+                [
+                  {:durable_object, "~> 0.1"},
+                  {:horde, "~> 0.9"}
+                ]
+              end
+
+          Then run `mix deps.get` and restart your application.
+          """
+      end
     end
   end
 
