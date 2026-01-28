@@ -157,9 +157,9 @@ defmodule DurableObject.Server do
   end
 
   @impl GenServer
-  def handle_call({:put_state, new_state}, _from, server) do
+  def handle_call({:put_state, new_state}, _from, %{state: state} = server) do
     server = %{server | state: new_state}
-    persist_state(server)
+    if new_state != state, do: persist_state(server)
     {:reply, :ok, schedule_shutdown(server)}
   end
 
@@ -172,12 +172,12 @@ defmodule DurableObject.Server do
       case apply(module, :handle_alarm, [alarm_name, state]) do
         {:noreply, new_state} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           schedule_alarm(server, name, delay)
           {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
@@ -199,23 +199,23 @@ defmodule DurableObject.Server do
       case apply(module, handler_fn, args ++ [state]) do
         {:reply, result, new_state} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           {:reply, {:ok, result}, schedule_shutdown(server)}
 
         {:reply, result, new_state, {:schedule_alarm, name, delay}} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           schedule_alarm(server, name, delay)
           {:reply, {:ok, result}, schedule_shutdown(server)}
 
         {:noreply, new_state} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
           server = %{server | state: new_state}
-          persist_state(server)
+          if new_state != state, do: persist_state(server)
           schedule_alarm(server, name, delay)
           {:reply, {:ok, :noreply}, schedule_shutdown(server)}
 
