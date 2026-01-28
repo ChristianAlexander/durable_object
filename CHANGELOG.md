@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-01-27
+
 ### Fixed
 
 - Oban scheduler `cancel/3` and `cancel_all/2` now pass an Ecto query to `Oban.cancel_all_jobs/2` instead of a function, fixing a crash with `Protocol.UndefinedError` for `Ecto.Queryable`
@@ -45,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scheduler` - Alarm scheduler backend
 - `scheduler_opts` - Backend-specific options
 
-[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ChristianAlexander/durable_object/releases/tag/v0.1.0
