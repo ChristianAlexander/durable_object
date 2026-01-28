@@ -12,7 +12,7 @@ if Code.ensure_loaded?(Oban) do
         config :durable_object,
           scheduler: DurableObject.Scheduler.Oban,
           scheduler_opts: [
-            oban_instance: MyApp.Oban,  # Required: your Oban instance name
+            oban_instance: MyApp.Oban,  # Optional, defaults to Oban
             oban_queue: :durable_object_alarms  # Optional, default shown
           ]
 
@@ -47,7 +47,7 @@ if Code.ensure_loaded?(Oban) do
 
     @impl DurableObject.Scheduler
     def schedule({module, object_id}, alarm_name, delay_ms, opts) do
-      oban_name = Keyword.fetch!(opts, :oban_instance)
+      oban_name = Keyword.get(opts, :oban_instance, Oban)
       queue = Keyword.get(opts, :oban_queue, @default_queue)
 
       job_args = %{
@@ -79,7 +79,7 @@ if Code.ensure_loaded?(Oban) do
 
     @impl DurableObject.Scheduler
     def cancel({module, object_id}, alarm_name, opts) do
-      oban_name = Keyword.fetch!(opts, :oban_instance)
+      oban_name = Keyword.get(opts, :oban_instance, Oban)
       worker = to_string(DurableObject.Scheduler.Oban.Worker)
 
       query =
@@ -97,7 +97,7 @@ if Code.ensure_loaded?(Oban) do
 
     @impl DurableObject.Scheduler
     def cancel_all({module, object_id}, opts) do
-      oban_name = Keyword.fetch!(opts, :oban_instance)
+      oban_name = Keyword.get(opts, :oban_instance, Oban)
       worker = to_string(DurableObject.Scheduler.Oban.Worker)
 
       query =
@@ -114,7 +114,7 @@ if Code.ensure_loaded?(Oban) do
 
     @impl DurableObject.Scheduler
     def list({module, object_id}, opts) do
-      oban_name = Keyword.fetch!(opts, :oban_instance)
+      oban_name = Keyword.get(opts, :oban_instance, Oban)
       conf = Oban.config(oban_name)
       worker = to_string(DurableObject.Scheduler.Oban.Worker)
 

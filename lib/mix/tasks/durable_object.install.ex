@@ -7,7 +7,7 @@ if Code.ensure_loaded?(Igniter) do
 
     * `--repo` - The Ecto repo to use (defaults to auto-detected repo)
     * `--scheduler` - Alarm scheduler: `polling` (default) or `oban`
-    * `--oban-instance` - Required if using Oban scheduler
+    * `--oban-instance` - Oban instance name (default: `Oban`)
     * `--oban-queue` - Oban queue name (default: `durable_object_alarms`)
     * `--distributed` - Enable Horde for distributed mode
 
@@ -79,18 +79,6 @@ if Code.ensure_loaded?(Igniter) do
       end
     end
 
-    defp validate_options(igniter, options, :oban) do
-      if is_nil(options[:oban_instance]) do
-        Igniter.add_issue(igniter, """
-        The Oban scheduler requires --oban-instance to be specified.
-
-        Example: mix igniter.install durable_object --scheduler oban --oban-instance MyApp.Oban
-        """)
-      else
-        igniter
-      end
-    end
-
     defp validate_options(igniter, _options, _scheduler), do: igniter
 
     defp add_configuration(igniter, repo, scheduler, options) do
@@ -111,15 +99,17 @@ if Code.ensure_loaded?(Igniter) do
             ]
 
           :oban ->
-            oban_instance = Module.concat([options[:oban_instance]])
             queue = String.to_atom(options[:oban_queue] || "durable_object_alarms")
+
+            scheduler_opts =
+              case options[:oban_instance] do
+                nil -> [oban_queue: queue]
+                instance -> [oban_instance: Module.concat([instance]), oban_queue: queue]
+              end
 
             [
               scheduler: DurableObject.Scheduler.Oban,
-              scheduler_opts: [
-                oban_instance: oban_instance,
-                oban_queue: queue
-              ]
+              scheduler_opts: scheduler_opts
             ]
         end
 

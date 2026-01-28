@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mermaid diagram rendering support in ExDoc
 - `usage-rules.md` for LLM agent guidance via the usageRules ecosystem
 
+### Changed
+
+- Oban scheduler `oban_instance` option now defaults to `Oban`, matching the common case where apps use a single default Oban instance
+
+### Fixed
+
+- Documentation in `DurableObject.Scheduler` now uses correct option names (`oban_instance` and `oban_queue`) to match the implementation
+
 ## [0.1.4] - 2026-01-27
 
 ### Fixed

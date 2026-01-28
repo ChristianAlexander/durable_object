@@ -31,33 +31,31 @@ defmodule DurableObject.Scheduler.ObanTest do
       end
     end
 
-    describe "schedule/4 argument handling" do
-      test "requires oban_instance in opts" do
-        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
+    describe "oban_instance defaults" do
+      # These tests verify that oban_instance defaults to Oban when not specified.
+      # Without a running Oban instance, we get a RuntimeError about Oban not running,
+      # which proves the default is being used (not a KeyError about missing option).
+
+      test "schedule/4 defaults oban_instance to Oban" do
+        assert_raise RuntimeError, ~r/No Oban instance named `Oban` is running/, fn ->
           ObanScheduler.schedule({TestModule, "test-id"}, :alarm, 1000, [])
         end
       end
-    end
 
-    describe "cancel/4 argument handling" do
-      test "requires oban_instance in opts" do
-        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
+      test "cancel/3 defaults oban_instance to Oban" do
+        assert_raise RuntimeError, ~r/No Oban instance named `Oban` is running/, fn ->
           ObanScheduler.cancel({TestModule, "test-id"}, :alarm, [])
         end
       end
-    end
 
-    describe "cancel_all/3 argument handling" do
-      test "requires oban_instance in opts" do
-        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
+      test "cancel_all/2 defaults oban_instance to Oban" do
+        assert_raise RuntimeError, ~r/No Oban instance named `Oban` is running/, fn ->
           ObanScheduler.cancel_all({TestModule, "test-id"}, [])
         end
       end
-    end
 
-    describe "list/3 argument handling" do
-      test "requires oban_instance in opts" do
-        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
+      test "list/2 defaults oban_instance to Oban" do
+        assert_raise RuntimeError, ~r/No Oban instance named `Oban` is running/, fn ->
           ObanScheduler.list({TestModule, "test-id"}, [])
         end
       end
