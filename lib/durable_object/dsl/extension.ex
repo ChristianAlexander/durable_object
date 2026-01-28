@@ -84,5 +84,8 @@ defmodule DurableObject.Dsl.Extension do
     sections: [@state_section, @handlers_section, @options_section],
     transformers: [
       DurableObject.Dsl.Transformers.BuildIntrospection
+    ],
+    verifiers: [
+      DurableObject.Dsl.Verifiers.ValidateHandlers
     ]
 end
