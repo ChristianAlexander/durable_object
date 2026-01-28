@@ -40,37 +40,15 @@ defmodule DurableObject.MixProject do
 
   defp docs do
     [
-      main: "DurableObject",
+      main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
       extras: ["README.md", "CHANGELOG.md"],
-      groups_for_modules: [
-        Core: [
-          DurableObject,
-          DurableObject.Behaviour,
-          DurableObject.Server
-        ],
-        DSL: [
-          DurableObject.Dsl,
-          DurableObject.Dsl.Extension,
-          DurableObject.Dsl.Field,
-          DurableObject.Dsl.Handler
-        ],
-        Storage: [
-          DurableObject.Storage,
-          DurableObject.Migration
-        ],
-        Scheduling: [
-          DurableObject.Scheduler,
-          DurableObject.Scheduler.Polling,
-          DurableObject.Scheduler.Oban
-        ],
-        Distribution: [
-          DurableObject.Cluster
-        ],
-        Observability: [
-          DurableObject.Telemetry
-        ]
+      nest_modules_by_prefix: [
+        DurableObject.Cluster,
+        DurableObject.Dsl,
+        DurableObject.Scheduler,
+        DurableObject.Storage
       ]
     ]
   end
