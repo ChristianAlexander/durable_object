@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Oban scheduler `cancel/3` and `cancel_all/2` now pass an Ecto query to `Oban.cancel_all_jobs/2` instead of a function, fixing a crash with `Protocol.UndefinedError` for `Ecto.Queryable`
+
 ## [0.1.1] - 2026-01-27
 
 ### Fixed

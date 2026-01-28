@@ -80,15 +80,15 @@ if Code.ensure_loaded?(Oban) do
       oban_name = Keyword.fetch!(opts, :oban_instance)
       worker = to_string(DurableObject.Scheduler.Oban.Worker)
 
-      {:ok, _count} =
-        Oban.cancel_all_jobs(oban_name, fn query ->
-          query
-          |> where([j], j.worker == ^worker)
-          |> where([j], j.state in ["available", "scheduled", "retryable"])
-          |> where([j], fragment("?->>'object_type' = ?", j.args, ^to_string(module)))
-          |> where([j], fragment("?->>'object_id' = ?", j.args, ^object_id))
-          |> where([j], fragment("?->>'alarm_name' = ?", j.args, ^to_string(alarm_name)))
-        end)
+      query =
+        Oban.Job
+        |> where([j], j.worker == ^worker)
+        |> where([j], j.state in ["available", "scheduled", "retryable"])
+        |> where([j], fragment("?->>'object_type' = ?", j.args, ^to_string(module)))
+        |> where([j], fragment("?->>'object_id' = ?", j.args, ^object_id))
+        |> where([j], fragment("?->>'alarm_name' = ?", j.args, ^to_string(alarm_name)))
+
+      {:ok, _count} = Oban.cancel_all_jobs(oban_name, query)
 
       :ok
     end
@@ -98,14 +98,14 @@ if Code.ensure_loaded?(Oban) do
       oban_name = Keyword.fetch!(opts, :oban_instance)
       worker = to_string(DurableObject.Scheduler.Oban.Worker)
 
-      {:ok, _count} =
-        Oban.cancel_all_jobs(oban_name, fn query ->
-          query
-          |> where([j], j.worker == ^worker)
-          |> where([j], j.state in ["available", "scheduled", "retryable"])
-          |> where([j], fragment("?->>'object_type' = ?", j.args, ^to_string(module)))
-          |> where([j], fragment("?->>'object_id' = ?", j.args, ^object_id))
-        end)
+      query =
+        Oban.Job
+        |> where([j], j.worker == ^worker)
+        |> where([j], j.state in ["available", "scheduled", "retryable"])
+        |> where([j], fragment("?->>'object_type' = ?", j.args, ^to_string(module)))
+        |> where([j], fragment("?->>'object_id' = ?", j.args, ^object_id))
+
+      {:ok, _count} = Oban.cancel_all_jobs(oban_name, query)
 
       :ok
     end
