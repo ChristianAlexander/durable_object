@@ -31,6 +31,17 @@ defmodule DurableObject.ServerTest do
       assert {:error, {:already_started, _}} =
                Server.start_link(module: TestHandler, object_id: "dup-test")
     end
+
+    test "accepts hibernate_after option" do
+      {:ok, pid} =
+        Server.start_link(module: TestHandler, object_id: "hib-1", hibernate_after: 1000)
+
+      assert Process.alive?(pid)
+    end
+
+    test "uses default hibernate_after of 5 minutes" do
+      assert Server.default_hibernate_after() == :timer.minutes(5)
+    end
   end
 
   describe "get_state/2 and put_state/3" do

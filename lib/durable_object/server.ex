@@ -4,6 +4,8 @@ defmodule DurableObject.Server do
   """
   use GenServer
 
+  @default_hibernate_after :timer.minutes(5)
+
   defstruct [:module, :object_id, :state]
 
   # --- Client API ---
@@ -15,14 +17,24 @@ defmodule DurableObject.Server do
 
     * `:module` - The handler module (required)
     * `:object_id` - The unique identifier for this object (required)
+    * `:hibernate_after` - Hibernate after this many ms of inactivity (default: 5 minutes)
 
   """
   def start_link(opts) do
     module = Keyword.fetch!(opts, :module)
     object_id = Keyword.fetch!(opts, :object_id)
+    hibernate_after = Keyword.get(opts, :hibernate_after, @default_hibernate_after)
 
-    GenServer.start_link(__MODULE__, opts, name: via_tuple(module, object_id))
+    GenServer.start_link(__MODULE__, opts,
+      name: via_tuple(module, object_id),
+      hibernate_after: hibernate_after
+    )
   end
+
+  @doc """
+  Returns the default hibernate_after value in milliseconds.
+  """
+  def default_hibernate_after, do: @default_hibernate_after
 
   @doc """
   Gets the current state of a Durable Object.
