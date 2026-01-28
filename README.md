@@ -199,7 +199,7 @@ DurableObject emits telemetry events for observability:
 
 - `[:durable_object, :storage, :save, :start | :stop | :exception]`
 - `[:durable_object, :storage, :load, :start | :stop | :exception]`
-- `[:durable_object, :storage, :release_lock, :start | :stop | :exception]`
+- `[:durable_object, :storage, :delete, :start | :stop | :exception]`
 
 ## License
 
