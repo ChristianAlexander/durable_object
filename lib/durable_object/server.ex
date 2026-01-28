@@ -131,7 +131,7 @@ defmodule DurableObject.Server do
     if repo do
       {:ok, server, {:continue, :load_state}}
     else
-      {:ok, schedule_shutdown(server)}
+      {:ok, server, {:continue, :after_load}}
     end
   end
 
@@ -145,7 +145,7 @@ defmodule DurableObject.Server do
         # New object - persist default state (already set in init)
         case DurableObject.Storage.save(repo, object_type, object_id, server.state, prefix: prefix) do
           {:ok, _object} ->
-            {:noreply, schedule_shutdown(server)}
+            run_after_load(server)
 
           {:error, reason} ->
             Logger.error(
@@ -159,12 +159,17 @@ defmodule DurableObject.Server do
         # Atomize string keys from JSON, merge with defaults for missing fields
         loaded_state = atomize_keys(object.state)
         merged_state = Map.merge(server.state, loaded_state)
-        {:noreply, schedule_shutdown(%{server | state: merged_state})}
+        run_after_load(%{server | state: merged_state})
 
       {:error, reason} ->
         Logger.error("Failed to load state for #{object_type}:#{object_id}: #{inspect(reason)}")
         {:stop, {:persistence_failed, reason}, server}
     end
+  end
+
+  @impl GenServer
+  def handle_continue(:after_load, server) do
+    run_after_load(server)
   end
 
   @impl GenServer
@@ -290,6 +295,33 @@ defmodule DurableObject.Server do
 
     opts = Keyword.merge(scheduler_opts, repo: repo, prefix: prefix)
     scheduler.schedule({module, object_id}, name, delay, opts)
+  end
+
+  defp run_after_load(%{module: module, state: state} = server) do
+    if function_exported?(module, :after_load, 1) do
+      case apply(module, :after_load, [state]) do
+        {:ok, new_state} ->
+          maybe_persist_after_load(%{server | state: new_state})
+
+        {:ok, new_state, {:schedule_alarm, name, delay}} ->
+          schedule_alarm(server, name, delay)
+          maybe_persist_after_load(%{server | state: new_state})
+      end
+    else
+      {:noreply, schedule_shutdown(server)}
+    end
+  end
+
+  defp maybe_persist_after_load(%{state: state} = server) do
+    # Persist if after_load changed state
+    case persist_state(server) do
+      :ok ->
+        {:noreply, schedule_shutdown(server)}
+
+      {:error, reason} ->
+        Logger.error("Failed to persist after_load state: #{inspect(reason)}")
+        {:stop, {:persistence_failed, reason}, %{server | state: state}}
+    end
   end
 
   defp atomize_keys(map) when is_map(map) do

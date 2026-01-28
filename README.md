@@ -150,6 +150,17 @@ defmodule MyApp.RateLimiter do
     handler :check, args: [:limit]
   end
 
+  # Schedule initial alarm when object is first loaded
+  @impl DurableObject.Behaviour
+  def after_load(state) do
+    if is_nil(state.window_start) do
+      {:ok, %{state | window_start: DateTime.utc_now()},
+       {:schedule_alarm, :reset_window, :timer.minutes(1)}}
+    else
+      {:ok, state}
+    end
+  end
+
   def handle_check(limit, state) do
     if state.requests < limit do
       {:reply, :allowed, %{state | requests: state.requests + 1}}

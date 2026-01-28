@@ -62,6 +62,11 @@ defmodule DurableObject.Behaviour do
              {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
           | {:error, reason :: term()}
 
+  @type after_load_result ::
+          {:ok, new_state :: map()}
+          | {:ok, new_state :: map(),
+             {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
+
   @doc """
   Called when a scheduled alarm fires.
 
@@ -69,5 +74,25 @@ defmodule DurableObject.Behaviour do
   """
   @callback handle_alarm(alarm_name :: atom(), state :: map()) :: alarm_result()
 
-  @optional_callbacks [handle_alarm: 2]
+  @doc """
+  Called after object state is loaded (or initialized with defaults for new objects).
+
+  Use this to schedule initial alarms or perform one-time setup.
+
+  This callback is optional. If not defined, no action is taken after load.
+
+  ## Example
+
+      def after_load(state) do
+        if is_nil(state.window_start) do
+          {:ok, %{state | window_start: DateTime.utc_now()},
+           {:schedule_alarm, :reset_window, :timer.minutes(1)}}
+        else
+          {:ok, state}
+        end
+      end
+  """
+  @callback after_load(state :: map()) :: after_load_result()
+
+  @optional_callbacks [handle_alarm: 2, after_load: 1]
 end
