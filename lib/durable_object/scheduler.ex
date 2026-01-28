@@ -10,14 +10,36 @@ defmodule DurableObject.Scheduler do
   ## Built-in Implementations
 
     * `DurableObject.Scheduler.Polling` - Database-backed polling scheduler (default)
+    * `DurableObject.Scheduler.Oban` - Oban-based scheduler (requires oban dependency)
 
   ## Configuration
+
+  ### Polling Scheduler (default)
 
       config :durable_object,
         scheduler: DurableObject.Scheduler.Polling,
         scheduler_opts: [
+          repo: MyApp.Repo,
           polling_interval: :timer.seconds(30)
         ]
+
+  ### Oban Scheduler
+
+  For applications already using Oban, the Oban scheduler leverages your existing
+  Oban infrastructure for alarm delivery.
+
+      config :durable_object,
+        scheduler: DurableObject.Scheduler.Oban,
+        scheduler_opts: [
+          oban_name: MyApp.Oban,  # Required: your Oban instance name
+          queue: :durable_object_alarms  # Optional, default shown
+        ]
+
+  You must also add the queue to your Oban configuration:
+
+      config :my_app, Oban,
+        repo: MyApp.Repo,
+        queues: [durable_object_alarms: 5]
 
   """
 
