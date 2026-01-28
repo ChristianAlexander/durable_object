@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Documentation now uses correct `registry_mode` config key instead of `cluster`
+- README migration example now uses latest migration version instead of hardcoding `version: 1`
+- Installer generates migrations using latest version for `up/0`
+- Polling scheduler documentation shows `repo` at top-level config (canonical location)
+
 ## [0.1.3] - 2026-01-27
 
 ### Fixed
@@ -37,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `options` section for lifecycle configuration
 - Automatic client API generation from handler definitions
 - Ecto-based persistence with JSON blob state storage
-- Versioned migrations for database schema
+- Versioned migrations for database schema (v1 creates tables, v2 removes unused locking columns)
 - Alarm scheduling with two backends:
   - `DurableObject.Scheduler.Polling` - Database-backed polling (default)
   - `DurableObject.Scheduler.Oban` - Oban integration (optional)

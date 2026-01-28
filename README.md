@@ -49,8 +49,8 @@ mix ecto.gen.migration add_durable_objects
 defmodule MyApp.Repo.Migrations.AddDurableObjects do
   use Ecto.Migration
 
-  def up, do: DurableObject.Migration.up(version: 1)
-  def down, do: DurableObject.Migration.down(version: 1)
+  def up, do: DurableObject.Migration.up()
+  def down, do: DurableObject.Migration.down()
 end
 ```
 
@@ -66,7 +66,7 @@ mix ecto.migrate
 # config/config.exs
 config :durable_object,
   repo: MyApp.Repo,
-  cluster: :local,  # or :horde for distributed
+  registry_mode: :local,  # or :horde for distributed
   scheduler: DurableObject.Scheduler.Polling,
   scheduler_opts: [polling_interval: :timer.seconds(30)]
 ```
@@ -185,7 +185,7 @@ For multi-node clusters, enable Horde:
 ```elixir
 # config/config.exs
 config :durable_object,
-  cluster: :horde
+  registry_mode: :horde
 ```
 
 This ensures:

@@ -144,11 +144,11 @@ if Code.ensure_loaded?(Igniter) do
         use Ecto.Migration
 
         def up do
-          DurableObject.Migration.up(version: 1)
+          DurableObject.Migration.up()
         end
 
         # We specify version: 1 in down, ensuring that we'll roll all the way back
-        # down if necessary, regardless of which version we've migrated up to.
+        # down regardless of which version we've migrated up to.
         def down do
           DurableObject.Migration.down(version: 1)
         end

@@ -10,9 +10,9 @@ defmodule DurableObject.Scheduler.Polling do
   ## Configuration
 
       config :durable_object,
+        repo: MyApp.Repo,
         scheduler: DurableObject.Scheduler.Polling,
         scheduler_opts: [
-          repo: MyApp.Repo,
           polling_interval: :timer.seconds(30)
         ]
 
