@@ -51,7 +51,7 @@ if Code.ensure_loaded?(Igniter) do
 
     @impl Igniter.Mix.Task
     def igniter(igniter) do
-      [module_name] = igniter.args.positional
+      %{module_name: module_name} = igniter.args.positional
       options = igniter.args.options
 
       module = Module.concat([module_name])
