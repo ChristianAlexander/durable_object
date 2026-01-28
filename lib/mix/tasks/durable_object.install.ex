@@ -106,7 +106,7 @@ if Code.ensure_loaded?(Igniter) do
           :polling ->
             [
               scheduler: DurableObject.Scheduler.Polling,
-              scheduler_opts: [polling_interval: {:code, Sourceror.parse_string!(":timer.seconds(30)")}]
+              scheduler_opts: {:code, Sourceror.parse_string!("[polling_interval: :timer.seconds(30)]")}
             ]
 
           :oban ->
