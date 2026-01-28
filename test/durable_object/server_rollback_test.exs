@@ -264,7 +264,8 @@ defmodule DurableObject.ServerRollbackTest do
         end)
 
       # Verify expected error logs were produced
-      assert log =~ "Failed to load" or log =~ "NonExistentRepo" or log =~ "UndefinedFunctionError"
+      assert log =~ "Failed to load" or log =~ "NonExistentRepo" or
+               log =~ "UndefinedFunctionError"
     end
   end
 end

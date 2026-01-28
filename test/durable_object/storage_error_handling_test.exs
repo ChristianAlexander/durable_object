@@ -42,12 +42,16 @@ defmodule DurableObject.StorageErrorHandlingTest do
     test "save emits start and stop events" do
       {:ok, _} = Storage.save(TestRepo, "Counter", "telemetry-save-1", %{count: 1})
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :start], %{system_time: _}, metadata}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :start],
+                      %{system_time: _}, metadata}
+
       assert metadata.repo == TestRepo
       assert metadata.object_type == "Counter"
       assert metadata.object_id == "telemetry-save-1"
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :stop], %{duration: duration}, _}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :stop],
+                      %{duration: duration}, _}
+
       assert duration > 0
     end
 
@@ -59,12 +63,16 @@ defmodule DurableObject.StorageErrorHandlingTest do
       assert_receive {:telemetry_event, [:durable_object, :storage, :save, :start], _, _}
       assert_receive {:telemetry_event, [:durable_object, :storage, :save, :stop], _, _}
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :load, :start], %{system_time: _}, metadata}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :load, :start],
+                      %{system_time: _}, metadata}
+
       assert metadata.repo == TestRepo
       assert metadata.object_type == "Counter"
       assert metadata.object_id == "telemetry-load-1"
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :load, :stop], %{duration: duration}, _}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :load, :stop],
+                      %{duration: duration}, _}
+
       assert duration > 0
     end
 
@@ -76,12 +84,15 @@ defmodule DurableObject.StorageErrorHandlingTest do
       assert_receive {:telemetry_event, [:durable_object, :storage, :save, :start], _, _}
       assert_receive {:telemetry_event, [:durable_object, :storage, :save, :stop], _, _}
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :delete, :start], %{system_time: _}, metadata}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :delete, :start],
+                      %{system_time: _}, metadata}
+
       assert metadata.repo == TestRepo
       assert metadata.object_type == "Counter"
       assert metadata.object_id == "telemetry-delete-1"
 
-      assert_receive {:telemetry_event, [:durable_object, :storage, :delete, :stop], %{duration: _}, _}
+      assert_receive {:telemetry_event, [:durable_object, :storage, :delete, :stop],
+                      %{duration: _}, _}
     end
   end
 

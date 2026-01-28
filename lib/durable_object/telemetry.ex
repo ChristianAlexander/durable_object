@@ -68,8 +68,10 @@ defmodule DurableObject.Telemetry do
   - `{:error, {failure_type, exception}}` - The function raised an exception
 
   """
-  @spec span(list(atom()), map(), (() -> term())) :: {:ok, term()} | {:error, {atom(), Exception.t()}}
-  def span(event_prefix, metadata, fun) when is_list(event_prefix) and is_map(metadata) and is_function(fun, 0) do
+  @spec span(list(atom()), map(), (-> term())) ::
+          {:ok, term()} | {:error, {atom(), Exception.t()}}
+  def span(event_prefix, metadata, fun)
+      when is_list(event_prefix) and is_map(metadata) and is_function(fun, 0) do
     start_time = System.monotonic_time()
 
     :telemetry.execute(

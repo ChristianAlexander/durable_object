@@ -143,7 +143,9 @@ defmodule DurableObject.Server do
     case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
       {:ok, nil} ->
         # New object - persist default state (already set in init)
-        case DurableObject.Storage.save(repo, object_type, object_id, server.state, prefix: prefix) do
+        case DurableObject.Storage.save(repo, object_type, object_id, server.state,
+               prefix: prefix
+             ) do
           {:ok, _object} ->
             run_after_load(server)
 
@@ -193,7 +195,13 @@ defmodule DurableObject.Server do
           handle_state_change(server, state, new_state, {:ok, :noreply}, nil)
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
-          handle_state_change(server, state, new_state, {:ok, :noreply}, {:schedule_alarm, name, delay})
+          handle_state_change(
+            server,
+            state,
+            new_state,
+            {:ok, :noreply},
+            {:schedule_alarm, name, delay}
+          )
 
         {:error, reason} ->
           {:reply, {:error, reason}, schedule_shutdown(server)}
@@ -218,13 +226,25 @@ defmodule DurableObject.Server do
           handle_state_change(server, state, new_state, {:ok, result}, nil)
 
         {:reply, result, new_state, {:schedule_alarm, name, delay}} ->
-          handle_state_change(server, state, new_state, {:ok, result}, {:schedule_alarm, name, delay})
+          handle_state_change(
+            server,
+            state,
+            new_state,
+            {:ok, result},
+            {:schedule_alarm, name, delay}
+          )
 
         {:noreply, new_state} ->
           handle_state_change(server, state, new_state, {:ok, :noreply}, nil)
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
-          handle_state_change(server, state, new_state, {:ok, :noreply}, {:schedule_alarm, name, delay})
+          handle_state_change(
+            server,
+            state,
+            new_state,
+            {:ok, :noreply},
+            {:schedule_alarm, name, delay}
+          )
 
         {:error, reason} ->
           {:reply, {:error, reason}, schedule_shutdown(server)}

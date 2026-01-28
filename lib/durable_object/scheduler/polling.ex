@@ -200,9 +200,7 @@ defmodule DurableObject.Scheduler.Polling do
     rescue
       ArgumentError ->
         # Module or alarm atom doesn't exist - alarm already deleted above
-        Logger.warning(
-          "Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded"
-        )
+        Logger.warning("Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded")
     end
 
     defp delete_alarm(repo, prefix, alarm_id) do
