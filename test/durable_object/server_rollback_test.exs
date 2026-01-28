@@ -1,6 +1,7 @@
 defmodule DurableObject.ServerRollbackTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
   alias DurableObject.{Server, Storage, TestRepo}
   import DurableObject.TestHelpers
 
@@ -230,22 +231,29 @@ defmodule DurableObject.ServerRollbackTest do
       # The server should fail to start because the repo doesn't work
       Process.flag(:trap_exit, true)
 
-      result =
-        Server.start_link(
-          module: RollbackCounter,
-          object_id: id,
-          repo: NonExistentRepo
-        )
+      log =
+        capture_log(fn ->
+          result =
+            Server.start_link(
+              module: RollbackCounter,
+              object_id: id,
+              repo: NonExistentRepo
+            )
 
-      # Either it fails immediately or soon after
-      case result do
-        {:error, _} ->
-          :ok
+          # Either it fails immediately or soon after
+          case result do
+            {:error, _} ->
+              :ok
 
-        {:ok, pid} ->
-          # Wait for it to crash
-          assert_receive {:EXIT, ^pid, _reason}, 1000
-      end
+            {:ok, pid} ->
+              # Wait for it to crash
+              assert_receive {:EXIT, ^pid, _reason}, 1000
+          end
+        end)
+
+      # Verify expected error logs were produced
+      assert log =~ "Failed to load durable object"
+      assert log =~ "NonExistentRepo"
     end
   end
 end
