@@ -59,12 +59,12 @@ defmodule DurableObject.Cluster do
           raise """
           Horde mode requires the :horde dependency.
 
-          Add {:horde, "~> 0.9"} to your dependencies:
+          Add {:horde, "~> 0.10"} to your dependencies:
 
               defp deps do
                 [
                   {:durable_object, "~> 0.1"},
-                  {:horde, "~> 0.9"}
+                  {:horde, "~> 0.10"}
                 ]
               end
 

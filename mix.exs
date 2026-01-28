@@ -78,7 +78,7 @@ defmodule DurableObject.MixProject do
       {:spark, "~> 2.0"},
       {:ecto_sqlite3, "~> 0.17", only: [:dev, :test]},
       {:jason, "~> 1.4"},
-      {:horde, "~> 0.9", optional: true},
+      {:horde, "~> 0.10", optional: true},
       {:oban, "~> 2.17", optional: true},
       {:igniter, "~> 0.5", optional: true},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}

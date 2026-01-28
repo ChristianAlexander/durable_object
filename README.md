@@ -22,7 +22,7 @@ def deps do
   [
     {:durable_object, "~> 0.1.0"},
     # Optional: for distributed mode
-    {:horde, "~> 0.9"},
+    {:horde, "~> 0.10"},
     # Optional: for Oban-based alarm scheduling
     {:oban, "~> 2.17"}
   ]
