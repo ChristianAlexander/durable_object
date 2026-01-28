@@ -57,6 +57,7 @@ if Code.ensure_loaded?(Igniter) do
           repo = get_repo(igniter, options)
 
           igniter
+          |> Igniter.Project.Formatter.import_dep(:durable_object)
           |> add_configuration(repo, scheduler, options)
           |> generate_migration(repo)
           |> maybe_add_oban_notice(scheduler, options)
