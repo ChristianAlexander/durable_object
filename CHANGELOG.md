@@ -34,3 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cluster` - `:local` (default) or `:horde` for distribution
 - `scheduler` - Alarm scheduler backend
 - `scheduler_opts` - Backend-specific options
+
+[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ChristianAlexander/durable_object/releases/tag/v0.1.0
