@@ -1,15 +1,77 @@
 defmodule DurableObject.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/ChristianAlexander/durable_object"
+
   def project do
     [
       app: :durable_object,
-      version: "0.1.0",
-      elixir: "~> 1.19",
+      version: @version,
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      name: "DurableObject",
+      description: description(),
+      package: package(),
+      docs: docs(),
+      source_url: @source_url
+    ]
+  end
+
+  defp description do
+    """
+    Durable Objects for Elixir - persistent, single-instance objects accessed by ID.
+    Provides stateful, persistent actors with automatic lifecycle management.
+    """
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url
+      },
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE CHANGELOG.md)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "DurableObject",
+      source_ref: "v#{@version}",
+      source_url: @source_url,
+      extras: ["README.md", "CHANGELOG.md"],
+      groups_for_modules: [
+        Core: [
+          DurableObject,
+          DurableObject.Behaviour,
+          DurableObject.Server
+        ],
+        DSL: [
+          DurableObject.Dsl,
+          DurableObject.Dsl.Extension,
+          DurableObject.Dsl.Field,
+          DurableObject.Dsl.Handler
+        ],
+        Storage: [
+          DurableObject.Storage,
+          DurableObject.Migration
+        ],
+        Scheduling: [
+          DurableObject.Scheduler,
+          DurableObject.Scheduler.Polling,
+          DurableObject.Scheduler.Oban
+        ],
+        Distribution: [
+          DurableObject.Cluster
+        ],
+        Observability: [
+          DurableObject.Telemetry
+        ]
+      ]
     ]
   end
 
@@ -40,7 +102,8 @@ defmodule DurableObject.MixProject do
       {:jason, "~> 1.4"},
       {:horde, "~> 0.9", optional: true},
       {:oban, "~> 2.17", optional: true},
-      {:igniter, "~> 0.5", optional: true}
+      {:igniter, "~> 0.5", optional: true},
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 end
