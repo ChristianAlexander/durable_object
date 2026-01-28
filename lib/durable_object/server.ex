@@ -156,8 +156,9 @@ defmodule DurableObject.Server do
         end
 
       {:ok, object} ->
-        # Merge defaults with loaded state - fills in missing fields from schema changes
-        merged_state = Map.merge(server.state, object.state)
+        # Atomize string keys from JSON, merge with defaults for missing fields
+        loaded_state = atomize_keys(object.state)
+        merged_state = Map.merge(server.state, loaded_state)
         {:noreply, schedule_shutdown(%{server | state: merged_state})}
 
       {:error, reason} ->
@@ -289,5 +290,12 @@ defmodule DurableObject.Server do
 
     opts = Keyword.merge(scheduler_opts, repo: repo, prefix: prefix)
     scheduler.schedule({module, object_id}, name, delay, opts)
+  end
+
+  defp atomize_keys(map) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
+      {key, value} -> {key, value}
+    end)
   end
 end
