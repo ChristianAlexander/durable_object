@@ -30,16 +30,17 @@ defmodule DurableObject.Scheduler do
 
       config :durable_object,
         scheduler: DurableObject.Scheduler.Oban,
-        scheduler_opts: [
-          oban_instance: MyApp.Oban,  # Optional, defaults to Oban
-          oban_queue: :durable_object_alarms  # Optional, default shown
-        ]
+        scheduler_opts: [oban_queue: :durable_object_alarms]
 
   You must also add the queue to your Oban configuration:
 
       config :my_app, Oban,
         repo: MyApp.Repo,
         queues: [durable_object_alarms: 5]
+
+  If your app uses a custom Oban instance name, specify it with `oban_instance`:
+
+      scheduler_opts: [oban_instance: MyApp.Oban, oban_queue: :durable_object_alarms]
 
   """
 

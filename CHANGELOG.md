@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Documentation in `DurableObject.Scheduler` now uses correct option names (`oban_instance` and `oban_queue`) to match the implementation
+- Oban scheduler documentation now shows simple default configuration first, with customization options explained separately
 
 ## [0.1.4] - 2026-01-27
 

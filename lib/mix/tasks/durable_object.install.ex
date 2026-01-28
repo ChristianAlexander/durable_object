@@ -14,6 +14,7 @@ if Code.ensure_loaded?(Igniter) do
     ## Example
 
         mix igniter.install durable_object
+        mix igniter.install durable_object --scheduler oban
         mix igniter.install durable_object --scheduler oban --oban-instance MyApp.Oban
         mix igniter.install durable_object --distributed
     """

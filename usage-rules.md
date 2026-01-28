@@ -123,18 +123,18 @@ For applications already using Oban. Provides retries, observability, and levera
 config :durable_object,
   repo: MyApp.Repo,
   scheduler: DurableObject.Scheduler.Oban,
-  scheduler_opts: [
-    oban_instance: MyApp.Oban,           # Required: your Oban instance name
-    oban_queue: :durable_object_alarms   # Optional, this is the default
-  ]
+  scheduler_opts: [oban_queue: :durable_object_alarms]
 
 # Add the queue to your Oban configuration
 config :my_app, Oban,
   repo: MyApp.Repo,
-  queues: [
-    default: 10,
-    durable_object_alarms: 5
-  ]
+  queues: [durable_object_alarms: 5]
+```
+
+If your app uses a custom Oban instance name (e.g., `MyApp.Oban` instead of the default `Oban`), specify it:
+
+```elixir
+scheduler_opts: [oban_instance: MyApp.Oban, oban_queue: :durable_object_alarms]
 ```
 
 **Oban scheduler notes:**
