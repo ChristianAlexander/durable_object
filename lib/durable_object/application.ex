@@ -8,7 +8,8 @@ defmodule DurableObject.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      {Registry, keys: :unique, name: DurableObject.Registry}
+      {Registry, keys: :unique, name: DurableObject.Registry},
+      DurableObject.ObjectSupervisor
     ]
 
     opts = [strategy: :one_for_one, name: DurableObject.Supervisor]
