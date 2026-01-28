@@ -30,13 +30,11 @@ defmodule DurableObject do
           hibernate_after 300_000
         end
 
-        @impl DurableObject.Behaviour
         def handle_increment(amount, state) do
           new_count = state.count + amount
           {:reply, new_count, %{state | count: new_count}}
         end
 
-        @impl DurableObject.Behaviour
         def handle_get(state) do
           {:reply, state.count, state}
         end
@@ -89,13 +87,11 @@ defmodule DurableObject do
           handler :get
         end
 
-        @impl DurableObject.Behaviour
         def handle_increment(amount, state) do
           new_count = state.count + amount
           {:reply, new_count, %{state | count: new_count}}
         end
 
-        @impl DurableObject.Behaviour
         def handle_get(state) do
           {:reply, state.count, state}
         end

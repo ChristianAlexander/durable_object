@@ -95,19 +95,16 @@ defmodule MyApp.Counter do
     shutdown_after :timer.hours(1)
   end
 
-  @impl DurableObject.Behaviour
   def handle_increment(amount \\ 1, state) do
     new_count = Map.get(state, :count, 0) + amount
     new_state = %{state | count: new_count, last_incremented_at: DateTime.utc_now()}
     {:reply, new_count, new_state}
   end
 
-  @impl DurableObject.Behaviour
   def handle_get(state) do
     {:reply, Map.get(state, :count, 0), state}
   end
 
-  @impl DurableObject.Behaviour
   def handle_reset(state) do
     {:reply, :ok, %{state | count: 0}}
   end
@@ -153,7 +150,6 @@ defmodule MyApp.RateLimiter do
     handler :check, args: [:limit]
   end
 
-  @impl DurableObject.Behaviour
   def handle_check(limit, state) do
     if state.requests < limit do
       {:reply, :allowed, %{state | requests: state.requests + 1}}

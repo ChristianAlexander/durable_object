@@ -1,11 +1,8 @@
 defmodule DurableObject.Behaviour do
   @moduledoc """
-  Behaviour defining callbacks for Durable Object handlers.
+  Behaviour for Durable Object alarm handling.
 
-  When using the Durable Object DSL, implement handler functions to process
-  requests and alarms. This behaviour is intentionally minimal - it serves
-  as documentation and compile-time guidance, but handler names are
-  dynamically defined by your DSL declarations.
+  Defines the optional `handle_alarm/2` callback for processing scheduled alarms.
 
   ## Handler Callbacks
 
