@@ -175,19 +175,21 @@ defmodule DurableObject.Scheduler.Polling do
       module = String.to_existing_atom(object_type)
       alarm = String.to_existing_atom(alarm_name)
 
+      # Delete the alarm BEFORE firing so that if the handler schedules a new
+      # alarm with the same name, the upsert creates a fresh record that won't
+      # be deleted after we return.
+      delete_alarm(repo, prefix, alarm_id)
+
       case DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
              repo: repo,
              prefix: prefix
            ) do
         {:ok, _} ->
-          # Delete the alarm after successful firing
-          delete_alarm(repo, prefix, alarm_id)
+          :ok
 
         {:error, {:persistence_failed, reason}} ->
-          # Persistence failed - keep alarm for retry on next poll
           Logger.warning(
-            "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed, " <>
-              "will retry: #{inspect(reason)}"
+            "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed: #{inspect(reason)}"
           )
 
         {:error, reason} ->
@@ -197,12 +199,10 @@ defmodule DurableObject.Scheduler.Polling do
       end
     rescue
       ArgumentError ->
-        # Module or alarm atom doesn't exist, delete the stale alarm
+        # Module or alarm atom doesn't exist - alarm already deleted above
         Logger.warning(
-          "Deleting stale alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded"
+          "Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded"
         )
-
-        delete_alarm(repo, prefix, alarm_id)
     end
 
     defp delete_alarm(repo, prefix, alarm_id) do
