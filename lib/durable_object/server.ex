@@ -156,7 +156,9 @@ defmodule DurableObject.Server do
         end
 
       {:ok, object} ->
-        {:noreply, schedule_shutdown(%{server | state: object.state})}
+        # Merge defaults with loaded state - fills in missing fields from schema changes
+        merged_state = Map.merge(server.state, object.state)
+        {:noreply, schedule_shutdown(%{server | state: merged_state})}
 
       {:error, reason} ->
         Logger.error("Failed to load state for #{object_type}:#{object_id}: #{inspect(reason)}")
