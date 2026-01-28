@@ -83,7 +83,8 @@ defmodule DurableObject.Dsl.Extension do
   use Spark.Dsl.Extension,
     sections: [@state_section, @handlers_section, @options_section],
     transformers: [
-      DurableObject.Dsl.Transformers.BuildIntrospection
+      DurableObject.Dsl.Transformers.BuildIntrospection,
+      DurableObject.Dsl.Transformers.GenerateClient
     ],
     verifiers: [
       DurableObject.Dsl.Verifiers.ValidateHandlers
