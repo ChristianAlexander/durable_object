@@ -32,32 +32,32 @@ defmodule DurableObject.Scheduler.ObanTest do
     end
 
     describe "schedule/4 argument handling" do
-      test "requires oban_name in opts" do
-        assert_raise KeyError, ~r/key :oban_name not found/, fn ->
+      test "requires oban_instance in opts" do
+        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
           ObanScheduler.schedule({TestModule, "test-id"}, :alarm, 1000, [])
         end
       end
     end
 
     describe "cancel/4 argument handling" do
-      test "requires oban_name in opts" do
-        assert_raise KeyError, ~r/key :oban_name not found/, fn ->
+      test "requires oban_instance in opts" do
+        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
           ObanScheduler.cancel({TestModule, "test-id"}, :alarm, [])
         end
       end
     end
 
     describe "cancel_all/3 argument handling" do
-      test "requires oban_name in opts" do
-        assert_raise KeyError, ~r/key :oban_name not found/, fn ->
+      test "requires oban_instance in opts" do
+        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
           ObanScheduler.cancel_all({TestModule, "test-id"}, [])
         end
       end
     end
 
     describe "list/3 argument handling" do
-      test "requires oban_name in opts" do
-        assert_raise KeyError, ~r/key :oban_name not found/, fn ->
+      test "requires oban_instance in opts" do
+        assert_raise KeyError, ~r/key :oban_instance not found/, fn ->
           ObanScheduler.list({TestModule, "test-id"}, [])
         end
       end

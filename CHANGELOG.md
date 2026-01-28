@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Oban scheduler now uses correct config keys (`oban_instance` and `oban_queue`) to match what the installer generates
+
 ## [0.1.0] - 2026-01-27
 
 ### Added
