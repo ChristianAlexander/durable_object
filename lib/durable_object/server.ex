@@ -3,6 +3,7 @@ defmodule DurableObject.Server do
   GenServer that backs each Durable Object instance.
   """
   use GenServer
+  require Logger
 
   @default_hibernate_after :timer.minutes(5)
 
@@ -64,6 +65,7 @@ defmodule DurableObject.Server do
     * `{:ok, result}` - Handler returned `{:reply, result, new_state}`
     * `{:ok, :noreply}` - Handler returned `{:noreply, new_state}`
     * `{:error, reason}` - Handler returned `{:error, reason}` or handler not found
+    * `{:error, {:persistence_failed, reason}}` - State change could not be persisted
 
   """
   def call(module, object_id, handler, args \\ [], timeout \\ 5000) do
@@ -137,18 +139,28 @@ defmodule DurableObject.Server do
     %{repo: repo, module: module, object_id: object_id, prefix: prefix} = server
     object_type = to_string(module)
 
-    server =
-      case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
-        {:ok, nil} ->
-          # New object - persist initial empty state
-          DurableObject.Storage.save(repo, object_type, object_id, %{}, prefix: prefix)
-          server
+    case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
+      {:ok, nil} ->
+        # New object - persist initial empty state
+        case DurableObject.Storage.save(repo, object_type, object_id, %{}, prefix: prefix) do
+          {:ok, _object} ->
+            {:noreply, schedule_shutdown(server)}
 
-        {:ok, object} ->
-          %{server | state: object.state}
-      end
+          {:error, reason} ->
+            Logger.error(
+              "Failed to save initial state for #{object_type}:#{object_id}: #{inspect(reason)}"
+            )
 
-    {:noreply, schedule_shutdown(server)}
+            {:stop, {:persistence_failed, reason}, server}
+        end
+
+      {:ok, object} ->
+        {:noreply, schedule_shutdown(%{server | state: object.state})}
+
+      {:error, reason} ->
+        Logger.error("Failed to load state for #{object_type}:#{object_id}: #{inspect(reason)}")
+        {:stop, {:persistence_failed, reason}, server}
+    end
   end
 
   @impl GenServer
@@ -158,9 +170,7 @@ defmodule DurableObject.Server do
 
   @impl GenServer
   def handle_call({:put_state, new_state}, _from, %{state: state} = server) do
-    server = %{server | state: new_state}
-    if new_state != state, do: persist_state(server)
-    {:reply, :ok, schedule_shutdown(server)}
+    handle_state_change(server, state, new_state, :ok, nil)
   end
 
   @impl GenServer
@@ -171,15 +181,10 @@ defmodule DurableObject.Server do
     if function_exported?(module, :handle_alarm, 2) do
       case apply(module, :handle_alarm, [alarm_name, state]) do
         {:noreply, new_state} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, :noreply}, nil)
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          schedule_alarm(server, name, delay)
-          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, :noreply}, {:schedule_alarm, name, delay})
 
         {:error, reason} ->
           {:reply, {:error, reason}, schedule_shutdown(server)}
@@ -201,26 +206,16 @@ defmodule DurableObject.Server do
           {:reply, {:ok, result}, schedule_shutdown(server)}
 
         {:reply, result, new_state} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          {:reply, {:ok, result}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, result}, nil)
 
         {:reply, result, new_state, {:schedule_alarm, name, delay}} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          schedule_alarm(server, name, delay)
-          {:reply, {:ok, result}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, result}, {:schedule_alarm, name, delay})
 
         {:noreply, new_state} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, :noreply}, nil)
 
         {:noreply, new_state, {:schedule_alarm, name, delay}} ->
-          server = %{server | state: new_state}
-          if new_state != state, do: persist_state(server)
-          schedule_alarm(server, name, delay)
-          {:reply, {:ok, :noreply}, schedule_shutdown(server)}
+          handle_state_change(server, state, new_state, {:ok, :noreply}, {:schedule_alarm, name, delay})
 
         {:error, reason} ->
           {:reply, {:error, reason}, schedule_shutdown(server)}
@@ -243,13 +238,36 @@ defmodule DurableObject.Server do
 
   # --- Private Functions ---
 
+  defp handle_state_change(server, old_state, new_state, reply, alarm) do
+    if new_state == old_state do
+      # No state change, no persistence needed
+      if alarm, do: schedule_alarm(server, elem(alarm, 1), elem(alarm, 2))
+      {:reply, reply, schedule_shutdown(server)}
+    else
+      # State changed - persist before committing
+      case persist_state(%{server | state: new_state}) do
+        :ok ->
+          updated_server = %{server | state: new_state}
+          if alarm, do: schedule_alarm(updated_server, elem(alarm, 1), elem(alarm, 2))
+          {:reply, reply, schedule_shutdown(updated_server)}
+
+        {:error, reason} ->
+          # Rollback: return error and keep old state
+          {:reply, {:error, {:persistence_failed, reason}}, schedule_shutdown(server)}
+      end
+    end
+  end
+
   defp persist_state(%{repo: nil}), do: :ok
 
   defp persist_state(server) do
     %{repo: repo, module: module, object_id: object_id, state: state, prefix: prefix} = server
     object_type = to_string(module)
-    DurableObject.Storage.save(repo, object_type, object_id, state, prefix: prefix)
-    :ok
+
+    case DurableObject.Storage.save(repo, object_type, object_id, state, prefix: prefix) do
+      {:ok, _object} -> :ok
+      {:error, reason} -> {:error, reason}
+    end
   end
 
   defp release_lock(%{repo: nil}), do: :ok
@@ -257,8 +275,18 @@ defmodule DurableObject.Server do
   defp release_lock(server) do
     %{repo: repo, module: module, object_id: object_id, prefix: prefix} = server
     object_type = to_string(module)
-    DurableObject.Storage.release_lock(repo, object_type, object_id, prefix: prefix)
-    :ok
+
+    case DurableObject.Storage.release_lock(repo, object_type, object_id, prefix: prefix) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        Logger.warning(
+          "Failed to release lock for #{object_type}:#{object_id} during terminate: #{inspect(reason)}"
+        )
+
+        :ok
+    end
   end
 
   defp schedule_shutdown(%{shutdown_after: nil} = server), do: server

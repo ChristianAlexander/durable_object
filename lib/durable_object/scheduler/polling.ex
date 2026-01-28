@@ -181,8 +181,14 @@ defmodule DurableObject.Scheduler.Polling do
            ) do
         {:ok, _} ->
           # Delete the alarm after successful firing
-          from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
-          |> repo.delete_all(prefix: prefix)
+          delete_alarm(repo, prefix, alarm_id)
+
+        {:error, {:persistence_failed, reason}} ->
+          # Persistence failed - keep alarm for retry on next poll
+          Logger.warning(
+            "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed, " <>
+              "will retry: #{inspect(reason)}"
+          )
 
         {:error, reason} ->
           Logger.warning(
@@ -196,8 +202,15 @@ defmodule DurableObject.Scheduler.Polling do
           "Deleting stale alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded"
         )
 
-        from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
-        |> repo.delete_all(prefix: prefix)
+        delete_alarm(repo, prefix, alarm_id)
+    end
+
+    defp delete_alarm(repo, prefix, alarm_id) do
+      from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
+      |> repo.delete_all(prefix: prefix)
+    rescue
+      exception ->
+        Logger.error("Failed to delete alarm #{alarm_id}: #{Exception.message(exception)}")
     end
 
     defp schedule_check(interval) do
