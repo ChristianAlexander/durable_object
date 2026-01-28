@@ -6,7 +6,7 @@ defmodule DurableObject.Server do
 
   @default_hibernate_after :timer.minutes(5)
 
-  defstruct [:module, :object_id, :state]
+  defstruct [:module, :object_id, :state, :shutdown_after, :shutdown_timer]
 
   # --- Client API ---
 
@@ -18,6 +18,7 @@ defmodule DurableObject.Server do
     * `:module` - The handler module (required)
     * `:object_id` - The unique identifier for this object (required)
     * `:hibernate_after` - Hibernate after this many ms of inactivity (default: 5 minutes)
+    * `:shutdown_after` - Stop process after this many ms of inactivity (default: nil, no shutdown)
 
   """
   def start_link(opts) do
@@ -108,18 +109,27 @@ defmodule DurableObject.Server do
   def init(opts) do
     module = Keyword.fetch!(opts, :module)
     object_id = Keyword.fetch!(opts, :object_id)
+    shutdown_after = Keyword.get(opts, :shutdown_after)
 
-    {:ok, %__MODULE__{module: module, object_id: object_id, state: %{}}}
+    server = %__MODULE__{
+      module: module,
+      object_id: object_id,
+      state: %{},
+      shutdown_after: shutdown_after,
+      shutdown_timer: nil
+    }
+
+    {:ok, schedule_shutdown(server)}
   end
 
   @impl GenServer
   def handle_call(:get_state, _from, server) do
-    {:reply, server.state, server}
+    {:reply, server.state, schedule_shutdown(server)}
   end
 
   @impl GenServer
   def handle_call({:put_state, new_state}, _from, server) do
-    {:reply, :ok, %{server | state: new_state}}
+    {:reply, :ok, schedule_shutdown(%{server | state: new_state})}
   end
 
   @impl GenServer
@@ -130,16 +140,31 @@ defmodule DurableObject.Server do
     if function_exported?(module, handler_fn, length(args) + 1) do
       case apply(module, handler_fn, args ++ [state]) do
         {:reply, result, new_state} ->
-          {:reply, {:ok, result}, %{server | state: new_state}}
+          {:reply, {:ok, result}, schedule_shutdown(%{server | state: new_state})}
 
         {:noreply, new_state} ->
-          {:reply, {:ok, :noreply}, %{server | state: new_state}}
+          {:reply, {:ok, :noreply}, schedule_shutdown(%{server | state: new_state})}
 
         {:error, reason} ->
-          {:reply, {:error, reason}, server}
+          {:reply, {:error, reason}, schedule_shutdown(server)}
       end
     else
-      {:reply, {:error, {:unknown_handler, handler}}, server}
+      {:reply, {:error, {:unknown_handler, handler}}, schedule_shutdown(server)}
     end
+  end
+
+  @impl GenServer
+  def handle_info(:shutdown_timeout, server) do
+    {:stop, :normal, server}
+  end
+
+  # --- Private Functions ---
+
+  defp schedule_shutdown(%{shutdown_after: nil} = server), do: server
+
+  defp schedule_shutdown(%{shutdown_after: timeout, shutdown_timer: old_timer} = server) do
+    if old_timer, do: Process.cancel_timer(old_timer)
+    timer = Process.send_after(self(), :shutdown_timeout, timeout)
+    %{server | shutdown_timer: timer}
   end
 end

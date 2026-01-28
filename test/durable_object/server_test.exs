@@ -178,4 +178,47 @@ defmodule DurableObject.ServerTest do
       assert Server.whereis(TestHandler, "whereis-1") == pid
     end
   end
+
+  describe "shutdown_after" do
+    test "process shuts down after timeout" do
+      {:ok, pid} =
+        Server.start_link(module: TestHandler, object_id: "shutdown-1", shutdown_after: 50)
+
+      assert Process.alive?(pid)
+      Process.sleep(100)
+      refute Process.alive?(pid)
+    end
+
+    test "activity resets shutdown timer" do
+      {:ok, pid} =
+        Server.start_link(module: CounterHandler, object_id: "shutdown-2", shutdown_after: 100)
+
+      # Activity at 30ms
+      Process.sleep(30)
+      Server.call(CounterHandler, "shutdown-2", :increment)
+
+      # At 80ms total (50ms since activity), should still be alive
+      Process.sleep(50)
+      assert Process.alive?(pid)
+
+      # At 180ms total (100ms since last activity), should be dead
+      Process.sleep(100)
+      refute Process.alive?(pid)
+    end
+
+    test "nil shutdown_after means no auto-shutdown" do
+      {:ok, pid} =
+        Server.start_link(module: TestHandler, object_id: "shutdown-3", shutdown_after: nil)
+
+      Process.sleep(50)
+      assert Process.alive?(pid)
+    end
+
+    test "no shutdown_after option means no auto-shutdown" do
+      {:ok, pid} = Server.start_link(module: TestHandler, object_id: "shutdown-4")
+
+      Process.sleep(50)
+      assert Process.alive?(pid)
+    end
+  end
 end
