@@ -11,10 +11,8 @@ defmodule DurableObject.Application do
     scheduler_opts = Application.get_env(:durable_object, :scheduler_opts, [])
     repo = Application.get_env(:durable_object, :repo)
 
-    base_children = [
-      {Registry, keys: :unique, name: DurableObject.Registry},
-      DurableObject.ObjectSupervisor
-    ]
+    # Use Cluster abstraction for registry and supervisor
+    base_children = DurableObject.Cluster.child_specs()
 
     # Add scheduler children (poller for polling backend, nothing for others)
     scheduler_children = scheduler.child_spec(Keyword.put(scheduler_opts, :repo, repo))

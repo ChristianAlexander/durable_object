@@ -1,20 +1,12 @@
 defmodule DurableObject.ObjectSupervisor do
   @moduledoc """
-  DynamicSupervisor for Durable Object processes.
+  Interface for Durable Object supervision.
 
   Objects are started with `:temporary` restart strategy since they
   will be re-created on demand when accessed.
+
+  This module delegates to the configured cluster backend (local or Horde).
   """
-  use DynamicSupervisor
-
-  def start_link(opts) do
-    DynamicSupervisor.start_link(__MODULE__, opts, name: __MODULE__)
-  end
-
-  @impl DynamicSupervisor
-  def init(_opts) do
-    DynamicSupervisor.init(strategy: :one_for_one)
-  end
 
   @doc """
   Starts a new Durable Object under supervision.
@@ -30,13 +22,13 @@ defmodule DurableObject.ObjectSupervisor do
       restart: :temporary
     }
 
-    DynamicSupervisor.start_child(__MODULE__, spec)
+    DurableObject.Cluster.start_child(spec)
   end
 
   @doc """
   Returns the count of currently running objects.
   """
   def count_objects do
-    DynamicSupervisor.count_children(__MODULE__).active
+    DurableObject.Cluster.count_children()
   end
 end

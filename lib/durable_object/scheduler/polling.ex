@@ -100,7 +100,16 @@ defmodule DurableObject.Scheduler.Polling do
 
   @impl DurableObject.Scheduler
   def child_spec(opts) do
-    [{__MODULE__.Poller, opts}]
+    case DurableObject.Cluster.mode() do
+      :local ->
+        [{__MODULE__.Poller, opts}]
+
+      :horde ->
+        [
+          {DurableObject.Singleton,
+           name: __MODULE__.Poller, child_module: __MODULE__.Poller, child_opts: opts}
+        ]
+    end
   end
 
   # --- Poller GenServer ---

@@ -102,7 +102,7 @@ defmodule DurableObject.Server do
   Returns the via tuple for Registry lookup.
   """
   def via_tuple(module, object_id) do
-    {:via, Registry, {DurableObject.Registry, {module, object_id}}}
+    DurableObject.Cluster.via_tuple(module, object_id)
   end
 
   # --- Server Callbacks ---
