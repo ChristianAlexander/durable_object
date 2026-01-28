@@ -81,5 +81,8 @@ defmodule DurableObject.Dsl.Extension do
   }
 
   use Spark.Dsl.Extension,
-    sections: [@state_section, @handlers_section, @options_section]
+    sections: [@state_section, @handlers_section, @options_section],
+    transformers: [
+      DurableObject.Dsl.Transformers.BuildIntrospection
+    ]
 end
