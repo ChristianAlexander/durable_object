@@ -101,6 +101,62 @@ defmodule DurableObject do
     quote do
       use DurableObject.Dsl
       @behaviour DurableObject.Behaviour
+
+      @doc """
+      Schedules an alarm to fire after `delay_ms` milliseconds.
+
+      When the alarm fires, `handle_alarm(alarm_name, state)` will be called.
+
+      ## Options
+
+        * `:repo` - Ecto repo for persistence
+        * `:prefix` - Table prefix for multi-tenancy
+
+      ## Examples
+
+          :ok = MyCounter.schedule_alarm("user-123", :cleanup, :timer.hours(1))
+      """
+      def schedule_alarm(object_id, alarm_name, delay_ms, opts \\ []) do
+        DurableObject.schedule_alarm(__MODULE__, object_id, alarm_name, delay_ms, opts)
+      end
+
+      @doc """
+      Cancels a pending alarm.
+
+      ## Options
+
+        * `:repo` - Ecto repo for persistence
+        * `:prefix` - Table prefix for multi-tenancy
+      """
+      def cancel_alarm(object_id, alarm_name, opts \\ []) do
+        DurableObject.cancel_alarm(__MODULE__, object_id, alarm_name, opts)
+      end
+
+      @doc """
+      Cancels all pending alarms for an object.
+
+      ## Options
+
+        * `:repo` - Ecto repo for persistence
+        * `:prefix` - Table prefix for multi-tenancy
+      """
+      def cancel_all_alarms(object_id, opts \\ []) do
+        DurableObject.cancel_all_alarms(__MODULE__, object_id, opts)
+      end
+
+      @doc """
+      Lists all pending alarms for an object.
+
+      Returns `{:ok, [{alarm_name, scheduled_at}, ...]}`.
+
+      ## Options
+
+        * `:repo` - Ecto repo for persistence
+        * `:prefix` - Table prefix for multi-tenancy
+      """
+      def list_alarms(object_id, opts \\ []) do
+        DurableObject.list_alarms(__MODULE__, object_id, opts)
+      end
     end
   end
 
