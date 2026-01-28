@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Lifecycle guide with Mermaid diagrams covering all phases from startup through shutdown
+- Mermaid diagram rendering support in ExDoc
+
 ## [0.1.4] - 2026-01-27
 
 ### Fixed

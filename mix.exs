@@ -43,7 +43,23 @@ defmodule DurableObject.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
+      extras: ["README.md", "guides/lifecycle.md", "CHANGELOG.md", "LICENSE"],
+      before_closing_body_tag: fn type ->
+        if type == :html do
+          """
+          <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"></script>
+          <script>
+            mermaid.initialize({
+              startOnLoad: true,
+              theme: 'default'
+            });
+          </script>
+          """
+        end
+      end,
+      groups_for_extras: [
+        Guides: ~r/guides\/.*/
+      ],
       nest_modules_by_prefix: [
         DurableObject.Cluster,
         DurableObject.Dsl,
