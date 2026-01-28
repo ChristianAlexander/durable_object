@@ -17,8 +17,7 @@ defmodule DurableObject.MixProject do
       description: description(),
       package: package(),
       docs: docs(),
-      source_url: @source_url,
-      preferred_cli_env: [docs: :dev]
+      source_url: @source_url
     ]
   end
 
