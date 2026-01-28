@@ -6,6 +6,30 @@ defmodule DurableObject.ServerTest do
   defmodule TestHandler do
   end
 
+  defmodule CounterHandler do
+    def handle_increment(state) do
+      new_count = Map.get(state, :count, 0) + 1
+      {:reply, new_count, Map.put(state, :count, new_count)}
+    end
+
+    def handle_increment_by(amount, state) do
+      new_count = Map.get(state, :count, 0) + amount
+      {:reply, new_count, Map.put(state, :count, new_count)}
+    end
+
+    def handle_get(state) do
+      {:reply, Map.get(state, :count, 0), state}
+    end
+
+    def handle_reset(state) do
+      {:noreply, Map.put(state, :count, 0)}
+    end
+
+    def handle_fail(_state) do
+      {:error, :something_went_wrong}
+    end
+  end
+
   describe "start_link/1" do
     test "registers process with via_tuple" do
       {:ok, pid} = Server.start_link(module: TestHandler, object_id: "test-1")
@@ -65,6 +89,50 @@ defmodule DurableObject.ServerTest do
       Server.put_state(TestHandler, "state-3", %{c: 3})
 
       assert Server.get_state(TestHandler, "state-3") == %{c: 3}
+    end
+  end
+
+  describe "call/4" do
+    test "dispatches to handle_<name> function" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-1")
+
+      assert {:ok, 1} = Server.call(CounterHandler, "call-1", :increment)
+      assert {:ok, 2} = Server.call(CounterHandler, "call-1", :increment)
+    end
+
+    test "passes args to handler" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-2")
+
+      assert {:ok, 5} = Server.call(CounterHandler, "call-2", :increment_by, [5])
+      assert {:ok, 15} = Server.call(CounterHandler, "call-2", :increment_by, [10])
+    end
+
+    test "handles {:reply, result, new_state}" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-3")
+
+      assert {:ok, 1} = Server.call(CounterHandler, "call-3", :increment)
+      assert {:ok, 1} = Server.call(CounterHandler, "call-3", :get)
+    end
+
+    test "handles {:noreply, new_state}" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-4")
+
+      Server.call(CounterHandler, "call-4", :increment_by, [10])
+      assert {:ok, :noreply} = Server.call(CounterHandler, "call-4", :reset)
+      assert {:ok, 0} = Server.call(CounterHandler, "call-4", :get)
+    end
+
+    test "handles {:error, reason}" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-5")
+
+      assert {:error, :something_went_wrong} = Server.call(CounterHandler, "call-5", :fail)
+    end
+
+    test "returns error for unknown handler" do
+      {:ok, _pid} = Server.start_link(module: CounterHandler, object_id: "call-6")
+
+      assert {:error, {:unknown_handler, :nonexistent}} =
+               Server.call(CounterHandler, "call-6", :nonexistent)
     end
   end
 end

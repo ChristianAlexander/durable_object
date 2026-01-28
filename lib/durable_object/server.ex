@@ -51,6 +51,23 @@ defmodule DurableObject.Server do
   end
 
   @doc """
+  Calls a handler on a Durable Object.
+
+  Dispatches to `handle_<name>/N` function on the module, where N is
+  the number of args plus one (for state).
+
+  ## Returns
+
+    * `{:ok, result}` - Handler returned `{:reply, result, new_state}`
+    * `{:ok, :noreply}` - Handler returned `{:noreply, new_state}`
+    * `{:error, reason}` - Handler returned `{:error, reason}` or handler not found
+
+  """
+  def call(module, object_id, handler, args \\ [], timeout \\ 5000) do
+    GenServer.call(via_tuple(module, object_id), {:call, handler, args}, timeout)
+  end
+
+  @doc """
   Returns the via tuple for Registry lookup.
   """
   def via_tuple(module, object_id) do
@@ -75,5 +92,26 @@ defmodule DurableObject.Server do
   @impl GenServer
   def handle_call({:put_state, new_state}, _from, server) do
     {:reply, :ok, %{server | state: new_state}}
+  end
+
+  @impl GenServer
+  def handle_call({:call, handler, args}, _from, server) do
+    %{module: module, state: state} = server
+    handler_fn = :"handle_#{handler}"
+
+    if function_exported?(module, handler_fn, length(args) + 1) do
+      case apply(module, handler_fn, args ++ [state]) do
+        {:reply, result, new_state} ->
+          {:reply, {:ok, result}, %{server | state: new_state}}
+
+        {:noreply, new_state} ->
+          {:reply, {:ok, :noreply}, %{server | state: new_state}}
+
+        {:error, reason} ->
+          {:reply, {:error, reason}, server}
+      end
+    else
+      {:reply, {:error, {:unknown_handler, handler}}, server}
+    end
   end
 end
