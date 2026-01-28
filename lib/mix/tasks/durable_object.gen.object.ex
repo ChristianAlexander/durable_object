@@ -13,6 +13,21 @@ if Code.ensure_loaded?(Igniter) do
     * `--fields` - Comma-separated list of field:type pairs
     * `--repo` - The Ecto repo to use (defaults to auto-detected repo)
 
+    ## Supported Field Types
+
+    | Type | Default |
+    |------|---------|
+    | `integer` | `0` |
+    | `float` | `0.0` |
+    | `string` | `""` |
+    | `boolean` | `false` |
+    | `map` | `%{}` |
+    | `list` | `[]` |
+    | `utc_datetime` | `nil` |
+    | `naive_datetime` | `nil` |
+
+    Any unrecognized type defaults to `nil`.
+
     ## Examples
 
         mix durable_object.gen.object MyApp.Counter --fields count:integer
