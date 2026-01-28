@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-01-27
+
 ### Fixed
 
 - Oban scheduler now uses correct config keys (`oban_instance` and `oban_queue`) to match what the installer generates
@@ -39,5 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scheduler` - Alarm scheduler backend
 - `scheduler_opts` - Backend-specific options
 
-[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ChristianAlexander/durable_object/releases/tag/v0.1.0
