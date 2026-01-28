@@ -116,11 +116,12 @@ defmodule DurableObject.Server do
     shutdown_after = Keyword.get(opts, :shutdown_after)
     repo = Keyword.get(opts, :repo)
     prefix = Keyword.get(opts, :prefix)
+    default_state = module.__durable_object__(:default_state)
 
     server = %__MODULE__{
       module: module,
       object_id: object_id,
-      state: %{},
+      state: default_state,
       shutdown_after: shutdown_after,
       shutdown_timer: nil,
       repo: repo,
@@ -141,8 +142,8 @@ defmodule DurableObject.Server do
 
     case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
       {:ok, nil} ->
-        # New object - persist initial empty state
-        case DurableObject.Storage.save(repo, object_type, object_id, %{}, prefix: prefix) do
+        # New object - persist default state (already set in init)
+        case DurableObject.Storage.save(repo, object_type, object_id, server.state, prefix: prefix) do
           {:ok, _object} ->
             {:noreply, schedule_shutdown(server)}
 
