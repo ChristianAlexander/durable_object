@@ -63,12 +63,14 @@ if Code.ensure_loaded?(Oban) do
       # Note: schedule_in is in seconds, so we convert from milliseconds
       schedule_in_seconds = max(div(delay_ms, 1000), 0)
 
-      job_args
-      |> DurableObject.Scheduler.Oban.Worker.new(
-        schedule_in: schedule_in_seconds,
-        queue: queue
-      )
-      |> Oban.insert(oban_name)
+      changeset =
+        DurableObject.Scheduler.Oban.Worker.new(job_args,
+          schedule_in: schedule_in_seconds,
+          queue: queue
+        )
+
+      oban_name
+      |> Oban.insert(changeset)
       |> case do
         {:ok, _job} -> :ok
         {:error, reason} -> {:error, reason}
