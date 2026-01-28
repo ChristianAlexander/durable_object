@@ -32,7 +32,7 @@ defmodule DurableObject.Migration do
 
   use Ecto.Migration
 
-  @current_version 1
+  @current_version 2
 
   @doc """
   Returns the current migration version.
@@ -114,7 +114,22 @@ defmodule DurableObject.Migration do
     drop_if_exists(table(:durable_objects, prefix: prefix))
   end
 
-  # Future versions would be added here:
-  # defp apply_change(2, :up, prefix) do ... end
-  # defp apply_change(2, :down, prefix) do ... end
+  # Version 2: Remove unused locking columns
+  defp apply_change(2, :up, prefix) do
+    drop_if_exists(index(:durable_objects, [:locked_by], prefix: prefix))
+
+    alter table(:durable_objects, prefix: prefix) do
+      remove_if_exists(:locked_by, :string)
+      remove_if_exists(:locked_at, :utc_datetime_usec)
+    end
+  end
+
+  defp apply_change(2, :down, prefix) do
+    alter table(:durable_objects, prefix: prefix) do
+      add_if_not_exists(:locked_by, :string)
+      add_if_not_exists(:locked_at, :utc_datetime_usec)
+    end
+
+    create_if_not_exists(index(:durable_objects, [:locked_by], prefix: prefix))
+  end
 end

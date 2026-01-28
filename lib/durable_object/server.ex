@@ -231,8 +231,7 @@ defmodule DurableObject.Server do
   end
 
   @impl GenServer
-  def terminate(_reason, server) do
-    release_lock(server)
+  def terminate(_reason, _server) do
     :ok
   end
 
@@ -267,25 +266,6 @@ defmodule DurableObject.Server do
     case DurableObject.Storage.save(repo, object_type, object_id, state, prefix: prefix) do
       {:ok, _object} -> :ok
       {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp release_lock(%{repo: nil}), do: :ok
-
-  defp release_lock(server) do
-    %{repo: repo, module: module, object_id: object_id, prefix: prefix} = server
-    object_type = to_string(module)
-
-    case DurableObject.Storage.release_lock(repo, object_type, object_id, prefix: prefix) do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning(
-          "Failed to release lock for #{object_type}:#{object_id} during terminate: #{inspect(reason)}"
-        )
-
-        :ok
     end
   end
 

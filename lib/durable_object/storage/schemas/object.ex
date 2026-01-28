@@ -13,14 +13,12 @@ defmodule DurableObject.Storage.Schemas.Object do
     field(:object_id, :string)
     field(:state, :map, default: %{})
     field(:version, :integer, default: 1)
-    field(:locked_by, :string)
-    field(:locked_at, :utc_datetime_usec)
 
     timestamps(type: :utc_datetime_usec)
   end
 
   @required_fields [:object_type, :object_id]
-  @optional_fields [:state, :version, :locked_by, :locked_at]
+  @optional_fields [:state, :version]
 
   @doc """
   Creates a changeset for an Object.

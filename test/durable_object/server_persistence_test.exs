@@ -61,31 +61,6 @@ defmodule DurableObject.ServerPersistenceTest do
       assert object.state == %{"count" => 2}
     end
 
-    test "releases lock on terminate" do
-      id = unique_id("lock")
-
-      {:ok, pid} =
-        Server.start_link(
-          module: PersistentCounter,
-          object_id: id,
-          repo: TestRepo
-        )
-
-      # Make a call to ensure it's persisted
-      {:ok, 1} = Server.call(PersistentCounter, id, :increment)
-
-      # Verify locked
-      {:ok, object} = Storage.load(TestRepo, "#{PersistentCounter}", id)
-      assert object.locked_by != nil
-
-      # Stop the server
-      GenServer.stop(pid)
-
-      # Verify lock released
-      {:ok, object} = Storage.load(TestRepo, "#{PersistentCounter}", id)
-      assert object.locked_by == nil
-    end
-
     test "state survives restart" do
       id = unique_id("survive")
 

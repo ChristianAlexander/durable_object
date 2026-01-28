@@ -19,8 +19,6 @@ defmodule DurableObject.StorageErrorHandlingTest do
         [:durable_object, :storage, :save, :stop],
         [:durable_object, :storage, :load, :start],
         [:durable_object, :storage, :load, :stop],
-        [:durable_object, :storage, :release_lock, :start],
-        [:durable_object, :storage, :release_lock, :stop],
         [:durable_object, :storage, :delete, :start],
         [:durable_object, :storage, :delete, :stop]
       ]
@@ -70,22 +68,6 @@ defmodule DurableObject.StorageErrorHandlingTest do
       assert duration > 0
     end
 
-    test "release_lock emits start and stop events" do
-      {:ok, _} = Storage.save(TestRepo, "Counter", "telemetry-release-1", %{})
-      :ok = Storage.release_lock(TestRepo, "Counter", "telemetry-release-1")
-
-      # Clear save events
-      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :start], _, _}
-      assert_receive {:telemetry_event, [:durable_object, :storage, :save, :stop], _, _}
-
-      assert_receive {:telemetry_event, [:durable_object, :storage, :release_lock, :start], %{system_time: _}, metadata}
-      assert metadata.repo == TestRepo
-      assert metadata.object_type == "Counter"
-      assert metadata.object_id == "telemetry-release-1"
-
-      assert_receive {:telemetry_event, [:durable_object, :storage, :release_lock, :stop], %{duration: _}, _}
-    end
-
     test "delete emits start and stop events" do
       {:ok, _} = Storage.save(TestRepo, "Counter", "telemetry-delete-1", %{})
       :ok = Storage.delete(TestRepo, "Counter", "telemetry-delete-1")
@@ -126,17 +108,6 @@ defmodule DurableObject.StorageErrorHandlingTest do
     test "load returns {:ok, nil} when not found" do
       result = Storage.load(TestRepo, "Counter", "nonexistent-123")
       assert {:ok, nil} = result
-    end
-
-    test "release_lock returns :ok on success" do
-      {:ok, _} = Storage.save(TestRepo, "Counter", "return-release-1", %{})
-      result = Storage.release_lock(TestRepo, "Counter", "return-release-1")
-      assert :ok = result
-    end
-
-    test "release_lock returns :ok for non-existent object" do
-      result = Storage.release_lock(TestRepo, "Counter", "nonexistent-456")
-      assert :ok = result
     end
 
     test "delete returns :ok on success" do

@@ -32,33 +32,6 @@ defmodule DurableObject.Storage.StorageTest do
       {:ok, loaded} = Storage.load(TestRepo, "Counter", "upsert-1")
       assert loaded.state == %{"count" => 2}
     end
-
-    test "sets locked_by to current node" do
-      {:ok, _} = Storage.save(TestRepo, "Counter", "lock-1", %{})
-
-      {:ok, loaded} = Storage.load(TestRepo, "Counter", "lock-1")
-      assert loaded.locked_by == to_string(Node.self())
-      assert loaded.locked_at != nil
-    end
-  end
-
-  describe "release_lock/4" do
-    test "clears locked_by and locked_at" do
-      {:ok, _} = Storage.save(TestRepo, "Counter", "release-1", %{})
-
-      {:ok, loaded} = Storage.load(TestRepo, "Counter", "release-1")
-      assert loaded.locked_by != nil
-
-      :ok = Storage.release_lock(TestRepo, "Counter", "release-1")
-
-      {:ok, loaded} = Storage.load(TestRepo, "Counter", "release-1")
-      assert loaded.locked_by == nil
-      assert loaded.locked_at == nil
-    end
-
-    test "returns :ok for non-existent object" do
-      :ok = Storage.release_lock(TestRepo, "Counter", "nonexistent")
-    end
   end
 
   describe "delete/4" do

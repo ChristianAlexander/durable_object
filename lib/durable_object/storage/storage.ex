@@ -60,7 +60,6 @@ defmodule DurableObject.Storage do
   Saves a Durable Object to the database.
 
   Uses upsert to insert or update based on (object_type, object_id).
-  Sets locked_by to the current node.
 
   Returns `{:ok, object}` on success, `{:error, changeset}` on validation error,
   or `{:error, {:save_failed, exception}}` on database error.
@@ -71,15 +70,12 @@ defmodule DurableObject.Storage do
   """
   def save(repo, object_type, object_id, state, opts \\ []) do
     prefix = Keyword.get(opts, :prefix)
-    node = Node.self() |> to_string()
     now = DateTime.utc_now()
 
     attrs = %{
       object_type: object_type,
       object_id: object_id,
-      state: state,
-      locked_by: node,
-      locked_at: now
+      state: state
     }
 
     metadata = %{
@@ -91,7 +87,7 @@ defmodule DurableObject.Storage do
     case Telemetry.span([:durable_object, :storage, :save], metadata, fn ->
            repo.insert(
              Object.changeset(%Object{}, attrs),
-             on_conflict: [set: [state: state, locked_by: node, locked_at: now, updated_at: now]],
+             on_conflict: [set: [state: state, updated_at: now]],
              conflict_target: [:object_type, :object_id],
              prefix: prefix
            )
@@ -105,46 +101,6 @@ defmodule DurableObject.Storage do
         )
 
         {:error, {:save_failed, exception}}
-    end
-  end
-
-  @doc """
-  Releases the lock on a Durable Object.
-
-  Called when a process terminates to allow other nodes to claim it.
-
-  Returns `:ok` on success or `{:error, {:release_lock_failed, exception}}` on failure.
-
-  ## Options
-
-    * `:prefix` - Table prefix for multi-tenancy (default: nil)
-  """
-  def release_lock(repo, object_type, object_id, opts \\ []) do
-    prefix = Keyword.get(opts, :prefix)
-
-    metadata = %{
-      repo: repo,
-      object_type: object_type,
-      object_id: object_id
-    }
-
-    case Telemetry.span([:durable_object, :storage, :release_lock], metadata, fn ->
-           from(o in Object,
-             where: o.object_type == ^object_type and o.object_id == ^object_id
-           )
-           |> repo.update_all([set: [locked_by: nil, locked_at: nil]], prefix: prefix)
-
-           :ok
-         end) do
-      {:ok, :ok} ->
-        :ok
-
-      {:error, exception} ->
-        Logger.error(
-          "Failed to release lock for durable object #{object_type}:#{object_id}: #{Exception.message(exception)}"
-        )
-
-        {:error, {:release_lock_failed, exception}}
     end
   end
 

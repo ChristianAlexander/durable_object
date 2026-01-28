@@ -30,9 +30,7 @@ defmodule DurableObject.Storage.Schemas.ObjectTest do
           object_type: "Counter",
           object_id: "test-1",
           state: %{count: 5},
-          version: 2,
-          locked_by: "node@host",
-          locked_at: DateTime.utc_now()
+          version: 2
         })
 
       assert changeset.valid?

@@ -7,7 +7,7 @@ defmodule DurableObject.Telemetry do
   ## Events
 
   All events are prefixed with `[:durable_object, :storage, <operation>]` where operation
-  is one of: `:save`, `:load`, `:release_lock`, `:delete`.
+  is one of: `:save`, `:load`, `:delete`.
 
   Each operation emits three events:
   - `[:durable_object, :storage, <operation>, :start]` - Emitted when the operation begins
