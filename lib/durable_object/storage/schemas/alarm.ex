@@ -12,6 +12,7 @@ defmodule DurableObject.Storage.Schemas.Alarm do
     field(:object_id, :string)
     field(:alarm_name, :string)
     field(:scheduled_at, :utc_datetime_usec)
+    field(:claimed_at, :utc_datetime_usec)
 
     timestamps(type: :utc_datetime_usec)
   end
