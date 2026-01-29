@@ -111,8 +111,17 @@ config :durable_object,
   repo: MyApp.Repo,
   registry_mode: :local,  # or :horde
   scheduler: DurableObject.Scheduler.Polling,
-  scheduler_opts: [polling_interval: :timer.seconds(30)]
+  scheduler_opts: [
+    polling_interval: :timer.seconds(30),
+    claim_ttl: :timer.seconds(60)
+  ]
 ```
+
+**Polling scheduler notes:**
+- `claim_ttl` controls how long a claimed alarm waits before being retried (default: 60s)
+- Alarms are claimed before firing and only deleted on success
+- Failed handlers will retry after the claim TTL expires
+- Uses at-least-once semantics; handlers should be idempotent
 
 ### Oban Scheduler
 

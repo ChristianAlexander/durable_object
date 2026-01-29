@@ -108,16 +108,32 @@ sequenceDiagram
     Handler->>DB: Write alarm (upsert)
     Note over DB: scheduled_at = now + delay
     loop Polling interval (default 30s)
-        Scheduler->>DB: Query overdue alarms
+        Scheduler->>DB: Query overdue, unclaimed alarms
         DB-->>Scheduler: Alarm records
     end
-    Scheduler->>DB: Delete alarm record
+    Scheduler->>DB: Claim alarm (set claimed_at)
     Scheduler->>Object: call(:__fire_alarm__, [alarm_name])
     Object->>Object: handle_alarm(name, state)
-    Object-->>Object: Optionally reschedule
+    alt Success
+        Scheduler->>DB: Delete alarm (if still claimed)
+    else Handler reschedules same alarm
+        Note over DB: Upsert clears claimed_at
+        Note over Scheduler: Delete is no-op
+    else Failure/crash
+        Note over DB: Alarm stays claimed
+        Note over Scheduler: Retries after claim TTL
+    end
 ```
 
-Alarms are persisted in the `durable_object_alarms` table and survive process restarts. The scheduler (polling or Oban) fires overdue alarms by calling the object, which invokes `handle_alarm/2`. Alarms with the same `(object_type, object_id, alarm_name)` are upserted, so scheduling an alarm that already exists replaces it.
+Alarms are persisted in the `durable_object_alarms` table and survive process restarts. The polling scheduler uses **claim-based execution** for crash recovery:
+
+1. **Claim**: Before firing, the scheduler atomically sets `claimed_at` on the alarm
+2. **Fire**: The object's `handle_alarm/2` callback is invoked
+3. **Delete**: On success, the alarm is deleted only if still claimed
+
+If a handler reschedules the same alarm, the upsert clears `claimed_at`, so the delete becomes a no-op and the new alarm persists. If the handler fails or the server crashes, the alarm remains claimed and will be retried after the `claim_ttl` expires (default: 60 seconds).
+
+Alarms with the same `(object_type, object_id, alarm_name)` are upserted, so scheduling an alarm that already exists replaces it.
 
 ### 6. Hibernation
 
@@ -150,3 +166,13 @@ Because state is persisted after every mutation and alarms are stored in the dat
 - **Process crash**: The next call starts a fresh process that loads state from the database. Alarms continue to fire since they are tracked externally.
 - **Node failure (Horde)**: Horde detects the failure and the object is re-started on another node on the next access. The polling scheduler also runs as a cluster singleton and migrates automatically.
 - **Application restart**: All objects start on demand. Pending alarms are picked up by the scheduler once it starts polling.
+- **Crash during alarm handler**: If the server crashes while executing an alarm handler, the alarm remains in the database with its `claimed_at` timestamp. After the `claim_ttl` expires (default: 60 seconds), the alarm becomes available for retry.
+
+#### At-Least-Once Semantics
+
+The polling scheduler provides **at-least-once delivery** for alarms. An alarm may fire more than once if:
+
+- The handler completes but the process crashes before deletion
+- The `claim_ttl` expires and another poller retries a still-processing alarm
+
+Design your `handle_alarm/2` callbacks to be **idempotent** -- safe to execute multiple times with the same effect.

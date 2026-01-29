@@ -68,7 +68,10 @@ config :durable_object,
   repo: MyApp.Repo,
   registry_mode: :local,  # or :horde for distributed
   scheduler: DurableObject.Scheduler.Polling,
-  scheduler_opts: [polling_interval: :timer.seconds(30)]
+  scheduler_opts: [
+    polling_interval: :timer.seconds(30),
+    claim_ttl: :timer.seconds(60)
+  ]
 ```
 
 ## Usage
