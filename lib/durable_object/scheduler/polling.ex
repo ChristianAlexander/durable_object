@@ -13,9 +13,29 @@ defmodule DurableObject.Scheduler.Polling do
         repo: MyApp.Repo,
         scheduler: DurableObject.Scheduler.Polling,
         scheduler_opts: [
-          polling_interval: :timer.seconds(30)
+          polling_interval: :timer.seconds(30),
+          claim_ttl: :timer.seconds(60)
         ]
 
+  ## Options
+
+    * `:polling_interval` - How often to check for overdue alarms (default: 30 seconds)
+    * `:claim_ttl` - How long a claimed alarm waits before being retried (default: 60 seconds)
+
+  ## Crash Recovery
+
+  The polling scheduler uses claim-based execution for crash recovery:
+
+  1. **Claim**: Before firing, the scheduler atomically sets `claimed_at` on the alarm
+  2. **Fire**: The object's `handle_alarm/2` callback is invoked
+  3. **Delete**: On success, the alarm is deleted only if still claimed
+
+  If a handler reschedules the same alarm, the upsert clears `claimed_at`, so the
+  delete becomes a no-op and the new alarm persists. If the handler fails or the
+  server crashes, the alarm remains claimed and will be retried after `claim_ttl`
+  expires.
+
+  This provides **at-least-once delivery** semantics. Handlers should be idempotent.
   """
 
   @behaviour DurableObject.Scheduler
@@ -40,7 +60,7 @@ defmodule DurableObject.Scheduler.Polling do
 
     case repo.insert(
            Alarm.changeset(%Alarm{}, attrs),
-           on_conflict: [set: [scheduled_at: scheduled_at, updated_at: DateTime.utc_now()]],
+           on_conflict: [set: [scheduled_at: scheduled_at, claimed_at: nil, updated_at: DateTime.utc_now()]],
            conflict_target: [:object_type, :object_id, :alarm_name],
            prefix: prefix
          ) do
@@ -121,6 +141,7 @@ defmodule DurableObject.Scheduler.Polling do
     require Logger
 
     @default_polling_interval :timer.seconds(30)
+    @default_claim_ttl_ms :timer.seconds(60)
 
     def start_link(opts) do
       name = Keyword.get(opts, :name, __MODULE__)
@@ -130,10 +151,11 @@ defmodule DurableObject.Scheduler.Polling do
     @impl GenServer
     def init(opts) do
       interval = Keyword.get(opts, :polling_interval, @default_polling_interval)
+      claim_ttl_ms = Keyword.get(opts, :claim_ttl, @default_claim_ttl_ms)
       repo = Keyword.get(opts, :repo)
       prefix = Keyword.get(opts, :prefix)
 
-      state = %{repo: repo, prefix: prefix, interval: interval}
+      state = %{repo: repo, prefix: prefix, interval: interval, claim_ttl_ms: claim_ttl_ms}
 
       # Only start polling if repo is configured
       if repo do
@@ -156,55 +178,86 @@ defmodule DurableObject.Scheduler.Polling do
       {:noreply, state}
     end
 
-    defp fire_overdue_alarms(%{repo: repo, prefix: prefix}) do
+    defp fire_overdue_alarms(%{repo: repo, prefix: prefix, claim_ttl_ms: claim_ttl_ms}) do
       now = DateTime.utc_now()
+      stale_threshold = DateTime.add(now, -claim_ttl_ms, :millisecond)
 
       query =
         from(a in DurableObject.Storage.Schemas.Alarm,
           where: a.scheduled_at <= ^now,
+          where: is_nil(a.claimed_at) or a.claimed_at <= ^stale_threshold,
           select: {a.object_type, a.object_id, a.alarm_name, a.id}
         )
 
       repo.all(query, prefix: prefix)
       |> Enum.each(fn {object_type, object_id, alarm_name, alarm_id} ->
-        fire_alarm(repo, prefix, object_type, object_id, alarm_name, alarm_id)
+        fire_alarm(repo, prefix, object_type, object_id, alarm_name, alarm_id, claim_ttl_ms)
       end)
     end
 
-    defp fire_alarm(repo, prefix, object_type, object_id, alarm_name, alarm_id) do
+    defp fire_alarm(repo, prefix, object_type, object_id, alarm_name, alarm_id, claim_ttl_ms) do
       module = String.to_existing_atom(object_type)
       alarm = String.to_existing_atom(alarm_name)
 
-      # Delete the alarm BEFORE firing so that if the handler schedules a new
-      # alarm with the same name, the upsert creates a fresh record that won't
-      # be deleted after we return.
-      delete_alarm(repo, prefix, alarm_id)
+      # Attempt to claim the alarm atomically. If another poller claimed it first,
+      # skip this alarm and let the other poller handle it.
+      if claim_alarm(repo, prefix, alarm_id, claim_ttl_ms) do
+        result =
+          try do
+            DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
+              repo: repo,
+              prefix: prefix
+            )
+          catch
+            :exit, reason ->
+              {:error, {:exit, reason}}
+          end
 
-      case DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
-             repo: repo,
-             prefix: prefix
-           ) do
-        {:ok, _} ->
-          :ok
+        case result do
+          {:ok, _} ->
+            # Success: delete the alarm only if it's still claimed (wasn't rescheduled).
+            # If the handler rescheduled the alarm, the upsert cleared claimed_at,
+            # so delete_if_still_claimed will be a no-op.
+            delete_if_still_claimed(repo, prefix, alarm_id)
 
-        {:error, {:persistence_failed, reason}} ->
-          Logger.warning(
-            "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed: #{inspect(reason)}"
-          )
+          {:error, {:persistence_failed, reason}} ->
+            # Persistence failed: leave the alarm claimed so it retries after TTL expires
+            Logger.warning(
+              "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed: #{inspect(reason)}"
+            )
 
-        {:error, reason} ->
-          Logger.warning(
-            "Failed to fire alarm #{alarm_name} for #{object_type}:#{object_id}: #{inspect(reason)}"
-          )
+          {:error, reason} ->
+            # Handler error: leave the alarm claimed so it retries after TTL expires
+            Logger.warning(
+              "Failed to fire alarm #{alarm_name} for #{object_type}:#{object_id}: #{inspect(reason)}"
+            )
+        end
       end
     rescue
       ArgumentError ->
-        # Module or alarm atom doesn't exist - alarm already deleted above
+        # Module or alarm atom doesn't exist
         Logger.warning("Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded")
     end
 
-    defp delete_alarm(repo, prefix, alarm_id) do
-      from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
+    defp claim_alarm(repo, prefix, alarm_id, claim_ttl_ms) do
+      now = DateTime.utc_now()
+      stale_threshold = DateTime.add(now, -claim_ttl_ms, :millisecond)
+
+      {count, _} =
+        from(a in DurableObject.Storage.Schemas.Alarm,
+          where: a.id == ^alarm_id,
+          where: is_nil(a.claimed_at) or a.claimed_at <= ^stale_threshold
+        )
+        |> repo.update_all([set: [claimed_at: now]], prefix: prefix)
+
+      count > 0
+    end
+
+    defp delete_if_still_claimed(repo, prefix, alarm_id) do
+      from(a in DurableObject.Storage.Schemas.Alarm,
+        where: a.id == ^alarm_id,
+        where: not is_nil(a.claimed_at)
+      )
       |> repo.delete_all(prefix: prefix)
     rescue
       exception ->
