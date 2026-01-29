@@ -6,6 +6,7 @@ defmodule DurableObject.SchedulerTest do
   alias DurableObject.TestRepo
 
   import Ecto.Query
+  import ExUnit.CaptureLog
   import DurableObject.TestHelpers
 
   @moduletag :scheduler
@@ -87,6 +88,10 @@ defmodule DurableObject.SchedulerTest do
 
     def handle_alarm(:noop_alarm, state) do
       {:noreply, state}
+    end
+
+    def handle_alarm(:failing_alarm, _state) do
+      raise "simulated handler failure"
     end
   end
 
@@ -602,12 +607,169 @@ defmodule DurableObject.SchedulerTest do
     end
   end
 
+  # --- Claim-based Alarm Handling Tests ---
+
+  describe "claim-based alarm handling" do
+    test "atomic claim - two pollers race, only one wins" do
+      id = unique_id("claim-race")
+      opts = [repo: TestRepo]
+
+      {:ok, poller1} = start_test_poller(claim_ttl: :timer.seconds(60))
+      {:ok, poller2} = start_test_poller(claim_ttl: :timer.seconds(60))
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule an alarm that's already overdue
+      :ok = Polling.schedule({AlarmCounter, id}, :test_alarm, 0, opts)
+
+      # Trigger both pollers simultaneously
+      send(poller1, :check_alarms)
+      send(poller2, :check_alarms)
+      Process.sleep(200)
+
+      # Handler should have been called exactly once (not twice)
+      {:ok, count} = AlarmCounter.get_alarm_count(id, opts)
+      assert count == 1
+
+      # Alarm should be deleted
+      {:ok, alarms} = Polling.list({AlarmCounter, id}, opts)
+      assert alarms == []
+
+      GenServer.stop(poller1)
+      GenServer.stop(poller2)
+    end
+
+    test "reschedule preserves alarm - claimed_at cleared by upsert, delete is no-op" do
+      id = unique_id("reschedule")
+      opts = [repo: TestRepo]
+
+      {:ok, poller} = start_test_poller(claim_ttl: :timer.seconds(60))
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule the initial recurring alarm (which reschedules itself)
+      :ok = Polling.schedule({AlarmCounter, id}, :recurring_alarm, 0, opts)
+
+      # Fire it
+      send(poller, :check_alarms)
+      Process.sleep(100)
+
+      # The handler should have scheduled a new alarm with claimed_at = nil
+      {:ok, alarms} = Polling.list({AlarmCounter, id}, opts)
+      assert length(alarms) == 1
+      assert hd(alarms) |> elem(0) == :recurring_alarm
+
+      # Verify the alarm record has claimed_at cleared
+      [alarm_record] =
+        TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+
+      assert is_nil(alarm_record.claimed_at)
+
+      GenServer.stop(poller)
+    end
+
+    test "stale claim retry - alarm becomes available after TTL" do
+      id = unique_id("stale")
+      opts = [repo: TestRepo]
+
+      # Use a very short claim TTL for testing
+      {:ok, poller} = start_test_poller(claim_ttl: 50)
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule an overdue alarm
+      :ok = Polling.schedule({AlarmCounter, id}, :test_alarm, 0, opts)
+
+      # Manually claim the alarm to simulate a crash mid-execution
+      [alarm_record] = TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+
+      from(a in Alarm, where: a.id == ^alarm_record.id)
+      |> TestRepo.update_all(set: [claimed_at: DateTime.utc_now()])
+
+      # Verify it's claimed
+      [claimed_record] = TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+      assert not is_nil(claimed_record.claimed_at)
+
+      # First poll - alarm is claimed, should be skipped
+      send(poller, :check_alarms)
+      Process.sleep(30)
+
+      {:ok, count} = AlarmCounter.get_alarm_count(id, opts)
+      assert count == 0
+
+      # Wait for claim TTL to expire
+      Process.sleep(60)
+
+      # Second poll - claim is stale, alarm should fire
+      send(poller, :check_alarms)
+      Process.sleep(100)
+
+      {:ok, count} = AlarmCounter.get_alarm_count(id, opts)
+      assert count == 1
+
+      # Alarm should be deleted
+      {:ok, alarms} = Polling.list({AlarmCounter, id}, opts)
+      assert alarms == []
+
+      GenServer.stop(poller)
+    end
+
+    test "error leaves claim - handler fails, alarm stays for retry" do
+      id = unique_id("error")
+      opts = [repo: TestRepo]
+
+      # Use a short claim TTL
+      {:ok, poller} = start_test_poller(claim_ttl: 100)
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule an alarm that will fail
+      :ok = Polling.schedule({AlarmCounter, id}, :failing_alarm, 0, opts)
+
+      # Fire it - handler will raise an error (capture logs to avoid noisy output)
+      capture_log(fn ->
+        send(poller, :check_alarms)
+        Process.sleep(100)
+      end)
+
+      # Alarm should still exist with claimed_at set
+      alarms = TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+      assert length(alarms) == 1
+      [alarm_record] = alarms
+      assert not is_nil(alarm_record.claimed_at)
+
+      GenServer.stop(poller)
+    end
+
+    test "successful fire deletes only if still claimed" do
+      id = unique_id("delete-claimed")
+      opts = [repo: TestRepo]
+
+      {:ok, poller} = start_test_poller(claim_ttl: :timer.seconds(60))
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule and fire a simple alarm
+      :ok = Polling.schedule({AlarmCounter, id}, :test_alarm, 0, opts)
+
+      send(poller, :check_alarms)
+      Process.sleep(100)
+
+      # Alarm should be fired and deleted
+      {:ok, alarms} = Polling.list({AlarmCounter, id}, opts)
+      assert alarms == []
+
+      {:ok, count} = AlarmCounter.get_alarm_count(id, opts)
+      assert count == 1
+
+      GenServer.stop(poller)
+    end
+  end
+
   # --- Helpers ---
 
-  defp start_test_poller do
+  defp start_test_poller(opts \\ []) do
+    claim_ttl = Keyword.get(opts, :claim_ttl, :timer.seconds(60))
+
     DurableObject.Scheduler.Polling.Poller.start_link(
       repo: TestRepo,
       polling_interval: :timer.seconds(60),
+      claim_ttl: claim_ttl,
       name: :"test_poller_#{System.unique_integer([:positive])}"
     )
   end
