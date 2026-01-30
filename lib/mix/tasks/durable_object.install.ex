@@ -129,19 +129,18 @@ if Code.ensure_loaded?(Igniter) do
 
     defp generate_migration(igniter, repo) do
       repo_name = Module.split(repo) |> List.last()
+      current_version = DurableObject.Migration.current_version()
 
       migration_content = """
       defmodule #{inspect(repo)}.Migrations.AddDurableObjects do
         use Ecto.Migration
 
         def up do
-          DurableObject.Migration.up()
+          DurableObject.Migration.up(version: #{current_version})
         end
 
-        # We specify version: 1 in down, ensuring that we'll roll all the way back
-        # down regardless of which version we've migrated up to.
         def down do
-          DurableObject.Migration.down(version: 1)
+          DurableObject.Migration.down(version: #{current_version})
         end
       end
       """

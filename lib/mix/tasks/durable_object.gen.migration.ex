@@ -53,10 +53,8 @@ if Code.ensure_loaded?(Igniter) do
         repo = get_repo(igniter, options)
         igniter = Igniter.include_glob(igniter, "priv/*/migrations/*.exs")
 
-        base_version = find_highest_durable_object_version(igniter)
-
-        cond do
-          base_version == 0 ->
+        case find_highest_durable_object_version(igniter) do
+          {:ok, 0} ->
             Igniter.add_issue(
               igniter,
               """
@@ -70,7 +68,7 @@ if Code.ensure_loaded?(Igniter) do
               """
             )
 
-          base_version >= current_version ->
+          {:ok, base_version} when base_version >= current_version ->
             Igniter.add_notice(
               igniter,
               """
@@ -80,8 +78,26 @@ if Code.ensure_loaded?(Igniter) do
               """
             )
 
-          true ->
+          {:ok, base_version} ->
             generate_upgrade_migration(igniter, repo, base_version, current_version)
+
+          {:unversioned, path} ->
+            Igniter.add_issue(
+              igniter,
+              """
+              Found a DurableObject migration without an explicit version:
+
+                  #{path}
+
+              Please update that migration to specify the version that was current when you
+              created it. For example, if you created it when DurableObject was at version 2:
+
+                  def up, do: DurableObject.Migration.up(version: 2)
+                  def down, do: DurableObject.Migration.down(version: 2)
+
+              Then run this task again.
+              """
+            )
         end
       end)
     end
@@ -100,22 +116,34 @@ if Code.ensure_loaded?(Igniter) do
     end
 
     defp find_highest_durable_object_version(igniter) do
-      igniter.rewrite
-      |> Rewrite.sources()
-      |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
-      |> Enum.filter(&String.contains?(&1.path, "/migrations/"))
-      |> Enum.flat_map(&extract_durable_object_versions/1)
-      |> Enum.max(fn -> 0 end)
+      results =
+        igniter.rewrite
+        |> Rewrite.sources()
+        |> Enum.filter(&match?(%Rewrite.Source{filetype: %Rewrite.Source.Ex{}}, &1))
+        |> Enum.filter(&String.contains?(&1.path, "/migrations/"))
+        |> Enum.flat_map(&extract_durable_object_versions/1)
+
+      cond do
+        Enum.empty?(results) ->
+          {:ok, 0}
+
+        Enum.any?(results, &match?({:unversioned, _}, &1)) ->
+          {_, path} = Enum.find(results, &match?({:unversioned, _}, &1))
+          {:unversioned, path}
+
+        true ->
+          {:ok, results |> Enum.map(fn {:ok, v} -> v end) |> Enum.max()}
+      end
     end
 
     defp extract_durable_object_versions(source) do
       source
       |> Rewrite.Source.get(:quoted)
       |> Sourceror.Zipper.zip()
-      |> find_migration_versions([])
+      |> find_migration_versions(source.path, [])
     end
 
-    defp find_migration_versions(zipper, versions) do
+    defp find_migration_versions(zipper, path, versions) do
       case Sourceror.Zipper.next(zipper) do
         nil ->
           versions
@@ -124,10 +152,11 @@ if Code.ensure_loaded?(Igniter) do
           new_versions =
             case extract_version_from_node(next_zipper.node) do
               nil -> versions
-              version -> [version | versions]
+              :unversioned -> [{:unversioned, path} | versions]
+              version -> [{:ok, version} | versions]
             end
 
-          find_migration_versions(next_zipper, new_versions)
+          find_migration_versions(next_zipper, path, new_versions)
       end
     end
 
@@ -149,9 +178,8 @@ if Code.ensure_loaded?(Igniter) do
     defp extract_version_from_node(_), do: nil
 
     defp extract_version_from_args([]) do
-      # up() with no args means current version at time of migration creation
-      # We can't know what that was, so assume it's the current version
-      DurableObject.Migration.current_version()
+      # up() with no args - we can't know what version was current at the time
+      :unversioned
     end
 
     defp extract_version_from_args([args]) when is_list(args) do
@@ -160,7 +188,7 @@ if Code.ensure_loaded?(Igniter) do
         {{:version, _, nil}, version} when is_integer(version) -> version
         {:version, version} when is_integer(version) -> version
         _ -> nil
-      end) || DurableObject.Migration.current_version()
+      end) || :unversioned
     end
 
     defp extract_version_from_args(_), do: nil
