@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-30
+
+### Upgrading from 0.1.x
+
+If you use the polling scheduler (`DurableObject.Scheduler.Polling`), the following changes are required. Users of the Oban scheduler are unaffected.
+
+**Required migration:** Before deploying, update your existing DurableObject migration to version 3:
+
+```elixir
+defmodule MyApp.Repo.Migrations.CreateDurableObjectTables do
+  use DurableObject.Migration, version: 3
+end
+```
+
+Then run `mix ecto.migrate`.
+
+**Idempotent handlers:** The polling scheduler now uses at-least-once delivery. If a node crashes mid-handler, the alarm will be retried after `claim_ttl` expires (default: 60 seconds). Ensure your `handle_alarm/3` callbacks are idempotent.
+
 ### Added
 
 - Crash recovery for polling scheduler alarms: if the server crashes or restarts while executing an alarm handler, the alarm is automatically retried
@@ -91,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scheduler` - Alarm scheduler backend
 - `scheduler_opts` - Backend-specific options
 
-[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.5...v0.2.0
 [0.1.5]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/ChristianAlexander/durable_object/compare/v0.1.2...v0.1.3
