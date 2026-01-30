@@ -60,7 +60,9 @@ defmodule DurableObject.Scheduler.Polling do
 
     case repo.insert(
            Alarm.changeset(%Alarm{}, attrs),
-           on_conflict: [set: [scheduled_at: scheduled_at, claimed_at: nil, updated_at: DateTime.utc_now()]],
+           on_conflict: [
+             set: [scheduled_at: scheduled_at, claimed_at: nil, updated_at: DateTime.utc_now()]
+           ],
            conflict_target: [:object_type, :object_id, :alarm_name],
            prefix: prefix
          ) do
@@ -240,7 +242,10 @@ defmodule DurableObject.Scheduler.Polling do
     rescue
       ArgumentError ->
         # Module or alarm atom doesn't exist - delete the orphaned alarm
-        Logger.warning("Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded, deleting orphaned alarm")
+        Logger.warning(
+          "Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded, deleting orphaned alarm"
+        )
+
         delete_alarm(repo, prefix, alarm_id)
     end
 
