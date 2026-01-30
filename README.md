@@ -37,30 +37,14 @@ mix igniter.install durable_object
 
 ### Manual Setup
 
-1. Generate the migration:
+1. Generate and run the migration:
 
 ```bash
-mix ecto.gen.migration add_durable_objects
-```
-
-2. Update the migration file:
-
-```elixir
-defmodule MyApp.Repo.Migrations.AddDurableObjects do
-  use Ecto.Migration
-
-  def up, do: DurableObject.Migration.up()
-  def down, do: DurableObject.Migration.down()
-end
-```
-
-3. Run the migration:
-
-```bash
+mix durable_object.gen.migration
 mix ecto.migrate
 ```
 
-4. Configure DurableObject in your application:
+2. Configure DurableObject in your application:
 
 ```elixir
 # config/config.exs
