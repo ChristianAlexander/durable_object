@@ -201,42 +201,47 @@ defmodule DurableObject.Scheduler.Polling do
 
       # Attempt to claim the alarm atomically. If another poller claimed it first,
       # skip this alarm and let the other poller handle it.
-      if claim_alarm(repo, prefix, alarm_id, claim_ttl_ms) do
-        result =
-          try do
-            DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
-              repo: repo,
-              prefix: prefix
-            )
-          catch
-            :exit, reason ->
-              {:error, {:exit, reason}}
+      case claim_alarm(repo, prefix, alarm_id, claim_ttl_ms) do
+        {:ok, claimed_at} ->
+          result =
+            try do
+              DurableObject.call(module, object_id, :__fire_alarm__, [alarm],
+                repo: repo,
+                prefix: prefix
+              )
+            catch
+              :exit, reason ->
+                {:error, {:exit, reason}}
+            end
+
+          case result do
+            {:ok, _} ->
+              # Success: delete the alarm only if we still own the claim (wasn't rescheduled
+              # or reclaimed by another poller after our claim expired).
+              delete_if_owned(repo, prefix, alarm_id, claimed_at)
+
+            {:error, {:persistence_failed, reason}} ->
+              # Persistence failed: leave the alarm claimed so it retries after TTL expires
+              Logger.warning(
+                "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed: #{inspect(reason)}"
+              )
+
+            {:error, reason} ->
+              # Handler error: leave the alarm claimed so it retries after TTL expires
+              Logger.warning(
+                "Failed to fire alarm #{alarm_name} for #{object_type}:#{object_id}: #{inspect(reason)}"
+              )
           end
 
-        case result do
-          {:ok, _} ->
-            # Success: delete the alarm only if it's still claimed (wasn't rescheduled).
-            # If the handler rescheduled the alarm, the upsert cleared claimed_at,
-            # so delete_if_still_claimed will be a no-op.
-            delete_if_still_claimed(repo, prefix, alarm_id)
-
-          {:error, {:persistence_failed, reason}} ->
-            # Persistence failed: leave the alarm claimed so it retries after TTL expires
-            Logger.warning(
-              "Alarm #{alarm_name} for #{object_type}:#{object_id} fired but persistence failed: #{inspect(reason)}"
-            )
-
-          {:error, reason} ->
-            # Handler error: leave the alarm claimed so it retries after TTL expires
-            Logger.warning(
-              "Failed to fire alarm #{alarm_name} for #{object_type}:#{object_id}: #{inspect(reason)}"
-            )
-        end
+        :not_claimed ->
+          # Another poller claimed it first, skip
+          :ok
       end
     rescue
       ArgumentError ->
-        # Module or alarm atom doesn't exist
-        Logger.warning("Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded")
+        # Module or alarm atom doesn't exist - delete the orphaned alarm
+        Logger.warning("Alarm #{alarm_name} for #{object_type}:#{object_id}: module not loaded, deleting orphaned alarm")
+        delete_alarm(repo, prefix, alarm_id)
     end
 
     defp claim_alarm(repo, prefix, alarm_id, claim_ttl_ms) do
@@ -250,14 +255,24 @@ defmodule DurableObject.Scheduler.Polling do
         )
         |> repo.update_all([set: [claimed_at: now]], prefix: prefix)
 
-      count > 0
+      if count > 0, do: {:ok, now}, else: :not_claimed
     end
 
-    defp delete_if_still_claimed(repo, prefix, alarm_id) do
+    defp delete_if_owned(repo, prefix, alarm_id, claimed_at) do
+      # Only delete if we still own the claim. This prevents a slow poller from
+      # deleting an alarm that was reclaimed by another poller after TTL expiry.
       from(a in DurableObject.Storage.Schemas.Alarm,
         where: a.id == ^alarm_id,
-        where: not is_nil(a.claimed_at)
+        where: a.claimed_at == ^claimed_at
       )
+      |> repo.delete_all(prefix: prefix)
+    rescue
+      exception ->
+        Logger.error("Failed to delete alarm #{alarm_id}: #{Exception.message(exception)}")
+    end
+
+    defp delete_alarm(repo, prefix, alarm_id) do
+      from(a in DurableObject.Storage.Schemas.Alarm, where: a.id == ^alarm_id)
       |> repo.delete_all(prefix: prefix)
     rescue
       exception ->

@@ -759,6 +759,45 @@ defmodule DurableObject.SchedulerTest do
 
       GenServer.stop(poller)
     end
+
+    test "slow poller does not delete alarm reclaimed by another poller" do
+      id = unique_id("slow-poller")
+      opts = [repo: TestRepo]
+
+      {:ok, _pid} = DurableObject.ensure_started(AlarmCounter, id, opts)
+
+      # Schedule an overdue alarm
+      :ok = Polling.schedule({AlarmCounter, id}, :test_alarm, 0, opts)
+      [alarm_record] = TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+
+      # Simulate poller A claiming at time T1
+      old_claim_time = DateTime.add(DateTime.utc_now(), -120, :second)
+
+      from(a in Alarm, where: a.id == ^alarm_record.id)
+      |> TestRepo.update_all(set: [claimed_at: old_claim_time])
+
+      # Simulate poller B reclaiming after TTL expired (current time)
+      new_claim_time = DateTime.utc_now()
+
+      from(a in Alarm, where: a.id == ^alarm_record.id)
+      |> TestRepo.update_all(set: [claimed_at: new_claim_time])
+
+      # Poller A finishes late and tries to delete with old claim time
+      # This simulates what delete_if_owned does - it should NOT delete
+      # because claimed_at no longer matches
+      {deleted_count, _} =
+        from(a in Alarm,
+          where: a.id == ^alarm_record.id,
+          where: a.claimed_at == ^old_claim_time
+        )
+        |> TestRepo.delete_all()
+
+      assert deleted_count == 0
+
+      # Alarm should still exist with poller B's claim
+      [remaining_alarm] = TestRepo.all(from(a in Alarm, where: a.object_id == ^id))
+      assert DateTime.compare(remaining_alarm.claimed_at, new_claim_time) == :eq
+    end
   end
 
   # --- Helpers ---
