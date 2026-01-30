@@ -13,14 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 If you use the polling scheduler (`DurableObject.Scheduler.Polling`), the following changes are required. Users of the Oban scheduler are unaffected.
 
-**Required migration:** Before deploying, update your existing DurableObject migration to version 3:
+**Required migration:** Generate a new migration and run it before deploying:
+
+```bash
+mix ecto.gen.migration upgrade_durable_objects_v3
+```
 
 ```elixir
-defmodule MyApp.Repo.Migrations.CreateDurableObjectTables do
+defmodule MyApp.Repo.Migrations.UpgradeDurableObjectsV3 do
   use Ecto.Migration
 
-  def up, do: DurableObject.Migration.up(version: 3)
-  def down, do: DurableObject.Migration.down(version: 3)
+  def up, do: DurableObject.Migration.up(base: 2, version: 3)
+  def down, do: DurableObject.Migration.down(base: 2, version: 3)
 end
 ```
 

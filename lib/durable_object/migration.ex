@@ -20,14 +20,19 @@ defmodule DurableObject.Migration do
   ## Upgrading
 
   When upgrading to a new version of DurableObject that requires schema changes,
-  generate a new migration and specify the new version:
+  generate a new migration and specify both the base version (already applied)
+  and the target version:
 
-      defmodule MyApp.Repo.Migrations.UpgradeDurableObjectsV2 do
+      mix ecto.gen.migration upgrade_durable_objects_v3
+
+      defmodule MyApp.Repo.Migrations.UpgradeDurableObjectsV3 do
         use Ecto.Migration
 
-        def up, do: DurableObject.Migration.up(version: 2)
-        def down, do: DurableObject.Migration.down(version: 2)
+        def up, do: DurableObject.Migration.up(base: 2, version: 3)
+        def down, do: DurableObject.Migration.down(base: 2, version: 3)
       end
+
+  This runs only version 3's changes, not versions 1-2 which are already applied.
   """
 
   use Ecto.Migration
@@ -45,30 +50,34 @@ defmodule DurableObject.Migration do
   ## Options
 
     * `:version` - Target version (default: current version)
+    * `:base` - Base version already applied (default: 0). Migrations will run from `base + 1` to `version`.
     * `:prefix` - Table prefix for multi-tenancy (default: nil)
   """
   def up(opts \\ []) do
     version = Keyword.get(opts, :version, @current_version)
+    base = Keyword.get(opts, :base, 0)
     prefix = Keyword.get(opts, :prefix)
 
-    for v <- 1..version do
+    for v <- (base + 1)..version//1 do
       apply_change(v, :up, prefix)
     end
   end
 
   @doc """
-  Runs migrations down to the specified version.
+  Runs migrations down from the specified version.
 
   ## Options
 
-    * `:version` - Target version to roll back to (default: 1)
+    * `:version` - Version to roll back from (default: current version)
+    * `:base` - Base version to roll back to (default: 0). Migrations will run from `version` down to `base + 1`.
     * `:prefix` - Table prefix for multi-tenancy (default: nil)
   """
   def down(opts \\ []) do
-    version = Keyword.get(opts, :version, 1)
+    version = Keyword.get(opts, :version, @current_version)
+    base = Keyword.get(opts, :base, 0)
     prefix = Keyword.get(opts, :prefix)
 
-    for v <- @current_version..version//-1 do
+    for v <- version..(base + 1)//-1 do
       apply_change(v, :down, prefix)
     end
   end
