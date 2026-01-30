@@ -13,27 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 If you use the polling scheduler (`DurableObject.Scheduler.Polling`), the following changes are required. Users of the Oban scheduler are unaffected.
 
-**Required migration:** Generate a new migration and run it before deploying:
+**Required migration:** Generate and run an upgrade migration before deploying:
 
 ```bash
-mix ecto.gen.migration upgrade_durable_objects_v3
+mix durable_object.gen.migration
+mix ecto.migrate
 ```
 
-```elixir
-defmodule MyApp.Repo.Migrations.UpgradeDurableObjectsV3 do
-  use Ecto.Migration
-
-  def up, do: DurableObject.Migration.up(base: 2, version: 3)
-  def down, do: DurableObject.Migration.down(base: 2, version: 3)
-end
-```
-
-Then run `mix ecto.migrate`.
+The task automatically detects your current migration version and generates the appropriate upgrade migration.
 
 **Idempotent handlers:** The polling scheduler now uses at-least-once delivery. If a node crashes mid-handler, the alarm will be retried after `claim_ttl` expires (default: 60 seconds). Ensure your `handle_alarm/3` callbacks are idempotent.
 
 ### Added
 
+- `mix durable_object.gen.migration` task to generate upgrade migrations automatically
+- `base` option for `DurableObject.Migration.up/1` and `down/1` to support incremental upgrades
 - Crash recovery for polling scheduler alarms: if the server crashes or restarts while executing an alarm handler, the alarm is automatically retried
 - New `claim_ttl` option for polling scheduler (default: 60 seconds) - controls how long before a claimed alarm becomes eligible for retry. Lower values reduce recovery latency but increase risk of duplicate delivery if handlers are slow.
 - Migration version 3 adds `claimed_at` column to `durable_object_alarms` table
