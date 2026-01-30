@@ -17,7 +17,10 @@ If you use the polling scheduler (`DurableObject.Scheduler.Polling`), the follow
 
 ```elixir
 defmodule MyApp.Repo.Migrations.CreateDurableObjectTables do
-  use DurableObject.Migration, version: 3
+  use Ecto.Migration
+
+  def up, do: DurableObject.Migration.up(version: 3)
+  def down, do: DurableObject.Migration.down(version: 3)
 end
 ```
 
