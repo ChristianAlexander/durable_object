@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Crash recovery for polling scheduler alarms: if the server crashes or restarts while executing an alarm handler, the alarm is automatically retried
+- New `claim_ttl` option for polling scheduler (default: 60 seconds) - controls how long before a claimed alarm becomes eligible for retry. Lower values reduce recovery latency but increase risk of duplicate delivery if handlers are slow.
+- Migration version 3 adds `claimed_at` column to `durable_object_alarms` table
+
+### Changed
+
+- Polling scheduler now uses at-least-once semantics (handlers should be idempotent)
+- Alarms are claimed before firing and only deleted on success
+- Failed or interrupted alarm handlers will retry after the claim TTL expires
+
 ## [0.1.5] - 2026-01-28
 
 ### Added
