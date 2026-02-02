@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `DurableObject.Testing` module with ergonomic test helpers
+  - `use DurableObject.Testing, repo: MyApp.Repo` sets up Ecto sandbox and imports helpers
+  - Unit testing: `perform_handler/4` and `perform_alarm_handler/3` for testing handler logic in isolation
+  - Alarm assertions: `assert_alarm_scheduled/4`, `refute_alarm_scheduled/4`, `all_scheduled_alarms/3`
+  - Alarm execution: `fire_alarm/4` to bypass scheduler timing, `drain_alarms/3` for alarm chains
+  - State assertion: `assert_persisted/4` for verifying persisted state
+  - Async helper: `assert_eventually/2` for polling conditions
+
 ### Fixed
 
 - `mix durable_object.gen.migration` now correctly detects version parameters in existing migrations parsed by Sourceror/Igniter
