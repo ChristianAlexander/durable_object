@@ -43,7 +43,7 @@ defmodule DurableObject.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "guides/lifecycle.md", "CHANGELOG.md", "LICENSE"],
+      extras: ["README.md", "guides/lifecycle.md", "guides/testing.md", "CHANGELOG.md", "LICENSE"],
       before_closing_body_tag: fn type ->
         if type == :html do
           """
