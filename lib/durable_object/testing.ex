@@ -419,7 +419,8 @@ defmodule DurableObject.Testing do
         # We detect rescheduling by comparing scheduled_at timestamps
         current_alarm = get_alarm(repo, module, object_id, alarm_name, prefix)
 
-        if current_alarm && DateTime.compare(current_alarm.scheduled_at, alarm.scheduled_at) == :eq do
+        if current_alarm &&
+             DateTime.compare(current_alarm.scheduled_at, alarm.scheduled_at) == :eq do
           # Alarm wasn't rescheduled (same timestamp), delete it
           from(a in Alarm,
             where: a.object_type == ^object_type,
@@ -428,6 +429,7 @@ defmodule DurableObject.Testing do
           )
           |> repo.delete_all(prefix: prefix)
         end
+
         # If timestamps differ, alarm was rescheduled - leave it
 
         :ok

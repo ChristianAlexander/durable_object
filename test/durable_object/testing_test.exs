@@ -338,7 +338,8 @@ defmodule DurableObject.TestingTest do
 
       # Both handlers should have run
       {:ok, state} = AlarmCounter.get(id, opts)
-      assert state.count == 110  # 10 from chain_a + 100 from chain_b
+      # 10 from chain_a + 100 from chain_b
+      assert state.count == 110
     end
 
     test "returns zero for empty alarm list" do
@@ -530,7 +531,8 @@ defmodule DurableObject.TestingTest do
   end
 
   describe "integration: prefix support" do
-    @tag :skip  # Skip if not testing multi-tenancy
+    # Skip if not testing multi-tenancy
+    @tag :skip
     test "works with table prefix" do
       id = unique_id("prefix")
       prefix = "tenant_test"

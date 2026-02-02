@@ -97,7 +97,8 @@ defmodule DurableObject.MixProject do
       {:horde, "~> 0.10", optional: true},
       {:oban, "~> 2.17", optional: true},
       {:igniter, "~> 0.5", optional: true},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:sourceror, "~> 1.7"}
     ]
   end
 end
