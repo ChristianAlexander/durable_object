@@ -45,7 +45,7 @@ Unit tests call handler functions directly without starting a GenServer or touch
 
 ### Testing Handlers
 
-Use `perform_handler/4` to test regular handlers:
+Use [`perform_handler/4`](`DurableObject.Testing.perform_handler/4`) to test regular handlers:
 
 ```elixir
 describe "handle_increment/2" do
@@ -78,7 +78,7 @@ The handler is called as `handle_increment_by(5, state)` - args come before stat
 
 ### Testing Alarm Handlers
 
-Use `perform_alarm_handler/3` to test alarm callbacks:
+Use [`perform_alarm_handler/3`](`DurableObject.Testing.perform_alarm_handler/3`) to test alarm callbacks:
 
 ```elixir
 describe "handle_alarm/2" do
@@ -123,7 +123,7 @@ end
 
 ### State Assertions
 
-The `assert_persisted/4` helper combines existence check and field assertions:
+The [`assert_persisted/4`](`DurableObject.Testing.assert_persisted/4`) helper combines existence check and field assertions:
 
 ```elixir
 # Just check it exists
@@ -136,7 +136,7 @@ assert_persisted Counter, id, count: 5, name: "test"
 assert_persisted Counter, id, %{count: 5}
 ```
 
-For custom assertions, use `get_persisted_state/3`:
+For custom assertions, use [`get_persisted_state/3`](`DurableObject.Testing.get_persisted_state/3`):
 
 ```elixir
 state = get_persisted_state(Counter, id)
@@ -201,7 +201,7 @@ end
 
 ### Firing Alarms
 
-Use `fire_alarm/4` to execute an alarm immediately without waiting for the scheduler:
+Use [`fire_alarm/4`](`DurableObject.Testing.fire_alarm/4`) to execute an alarm immediately without waiting for the scheduler:
 
 ```elixir
 test "firing alarm triggers handler" do
@@ -220,11 +220,11 @@ test "firing alarm triggers handler" do
 end
 ```
 
-**Note:** `fire_alarm/4` starts the object if it's not running. If your test depends on the object NOT being started, use `perform_alarm_handler/3` instead.
+**Note:** [`fire_alarm/4`](`DurableObject.Testing.fire_alarm/4`) starts the object if it's not running. If your test depends on the object NOT being started, use [`perform_alarm_handler/3`](`DurableObject.Testing.perform_alarm_handler/3`) instead.
 
 ### Rescheduling Detection
 
-If your alarm handler reschedules the same alarm, `fire_alarm/4` preserves it:
+If your alarm handler reschedules the same alarm, [`fire_alarm/4`](`DurableObject.Testing.fire_alarm/4`) preserves it:
 
 ```elixir
 test "recurring alarm stays scheduled" do
@@ -246,7 +246,7 @@ end
 
 ### Draining Alarm Chains
 
-Use `drain_alarms/3` to fire all pending alarms, including any scheduled during execution:
+Use [`drain_alarms/3`](`DurableObject.Testing.drain_alarms/3`) to fire all pending alarms, including any scheduled during execution:
 
 ```elixir
 test "alarm chain completes" do
@@ -265,7 +265,7 @@ test "alarm chain completes" do
 end
 ```
 
-**Warning:** `drain_alarms/3` can hang if alarms reschedule indefinitely. Use the `:max_iterations` option to limit iterations:
+**Warning:** [`drain_alarms/3`](`DurableObject.Testing.drain_alarms/3`) can hang if alarms reschedule indefinitely. Use the `:max_iterations` option to limit iterations:
 
 ```elixir
 # Stop after 10 alarms (raises if exceeded)
@@ -274,7 +274,7 @@ end
 
 ## Async Testing
 
-For truly asynchronous scenarios where you can't control timing, use `assert_eventually/2`:
+For truly asynchronous scenarios where you can't control timing, use [`assert_eventually/2`](`DurableObject.Testing.assert_eventually/2`):
 
 ```elixir
 test "object shuts down after timeout" do
@@ -293,7 +293,7 @@ test "object shuts down after timeout" do
 end
 ```
 
-**Use sparingly** - prefer deterministic tests with `fire_alarm/4` over polling with `assert_eventually/2`.
+**Use sparingly** - prefer deterministic tests with [`fire_alarm/4`](`DurableObject.Testing.fire_alarm/4`) over polling with [`assert_eventually/2`](`DurableObject.Testing.assert_eventually/2`).
 
 ## Testing Patterns
 
@@ -376,10 +376,10 @@ end
 
 1. **No async tests**: Tests must use `async: false` (or omit the option) because the Ecto sandbox runs in shared mode for cross-process database access.
 
-2. **fire_alarm starts objects**: `fire_alarm/4` will start the DurableObject if it's not running. Use `perform_alarm_handler/3` if you need to test alarm logic without starting the object.
+2. **fire_alarm starts objects**: [`fire_alarm/4`](`DurableObject.Testing.fire_alarm/4`) will start the DurableObject if it's not running. Use [`perform_alarm_handler/3`](`DurableObject.Testing.perform_alarm_handler/3`) if you need to test alarm logic without starting the object.
 
 3. **Process dictionary**: Helper functions use the process dictionary set by `__setup__/2`, so they only work in the test process itself.
 
 ## Reference
 
-See `DurableObject.Testing` for full API documentation.
+See `DurableObject.Testing` for the full API documentation.
