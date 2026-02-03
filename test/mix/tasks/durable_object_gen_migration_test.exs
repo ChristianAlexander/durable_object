@@ -50,7 +50,8 @@ defmodule Mix.Tasks.DurableObject.Gen.MigrationTest do
     test "extracts version from Sourceror wrapped AST with different metadata" do
       # Sourceror may include various metadata
       args = [
-        {{:__block__, [trailing_comments: [], leading_comments: [], line: 5, column: 10], [:version]},
+        {{:__block__, [trailing_comments: [], leading_comments: [], line: 5, column: 10],
+          [:version]},
          {:__block__, [trailing_comments: [], leading_comments: [], line: 5, column: 20], [5]}}
       ]
 
