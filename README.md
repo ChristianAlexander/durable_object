@@ -51,6 +51,7 @@ mix ecto.migrate
 config :durable_object,
   repo: MyApp.Repo,
   registry_mode: :local,  # or :horde for distributed
+  object_keys: :strings,  # :strings | :atoms! | :atoms — controls map key conversion on load
   scheduler: DurableObject.Scheduler.Polling,
   scheduler_opts: [
     polling_interval: :timer.seconds(30),

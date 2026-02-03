@@ -567,7 +567,8 @@ defmodule DurableObject.Testing do
   Returns the persisted state for an object, or `nil` if not found.
 
   Useful for custom assertions beyond what `assert_persisted/4` provides.
-  Keys are returned as atoms.
+  Top-level field keys are returned as atoms. Keys within field values
+  remain as strings (the raw DB form), regardless of the `object_keys` setting.
 
   ## Options
 
@@ -579,6 +580,9 @@ defmodule DurableObject.Testing do
       state = get_persisted_state(Counter, "user-123")
       assert state.count > 0
       assert state.name =~ ~r/test/
+
+      # Nested keys are always strings, even with object_keys: :atoms!
+      assert state.metadata == %{"foo" => "bar"}
 
       # Returns nil if not persisted
       assert nil == get_persisted_state(Counter, "nonexistent")

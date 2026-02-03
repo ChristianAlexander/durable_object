@@ -1,5 +1,6 @@
 defmodule DurableObject.ServerObjectKeysTest do
   use ExUnit.Case
+  use DurableObject.Testing, repo: DurableObject.TestRepo
 
   alias DurableObject.{Server, Storage, TestRepo}
   import DurableObject.TestHelpers
@@ -32,7 +33,7 @@ defmodule DurableObject.ServerObjectKeysTest do
     use DurableObject
 
     options do
-      object_keys :strings
+      object_keys(:strings)
     end
 
     state do
@@ -53,7 +54,7 @@ defmodule DurableObject.ServerObjectKeysTest do
     use DurableObject
 
     options do
-      object_keys :atoms!
+      object_keys(:atoms!)
     end
 
     state do
@@ -75,7 +76,7 @@ defmodule DurableObject.ServerObjectKeysTest do
     use DurableObject
 
     options do
-      object_keys :atoms
+      object_keys(:atoms)
     end
 
     state do
@@ -90,12 +91,6 @@ defmodule DurableObject.ServerObjectKeysTest do
     def handle_get(state) do
       {:reply, state, state}
     end
-  end
-
-  setup do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(TestRepo)
-    Ecto.Adapters.SQL.Sandbox.mode(TestRepo, {:shared, self()})
-    :ok
   end
 
   describe "introspection" do
@@ -178,6 +173,7 @@ defmodule DurableObject.ServerObjectKeysTest do
       assert state.items == [%{name: "item1"}, %{name: "item2"}]
     end
 
+    @tag capture_log: true
     test "raises for non-existent atoms" do
       id = unique_id("nonexistent-atoms")
 

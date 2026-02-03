@@ -7,7 +7,16 @@ defmodule DurableObject.Server do
 
   @default_hibernate_after :timer.minutes(5)
 
-  defstruct [:module, :object_id, :state, :shutdown_after, :shutdown_timer, :repo, :prefix, :object_keys]
+  defstruct [
+    :module,
+    :object_id,
+    :state,
+    :shutdown_after,
+    :shutdown_timer,
+    :repo,
+    :prefix,
+    :object_keys
+  ]
 
   # --- Client API ---
 
@@ -379,13 +388,7 @@ defmodule DurableObject.Server do
   defp convert_key(key, :atoms), do: String.to_atom(key)
 
   defp get_object_keys_config(module) do
-    dsl_value =
-      if function_exported?(module, :__durable_object__, 1) do
-        module.__durable_object__(:object_keys)
-      else
-        nil
-      end
-
-    dsl_value || Application.get_env(:durable_object, :object_keys, :strings)
+    module.__durable_object__(:object_keys) ||
+      Application.get_env(:durable_object, :object_keys, :strings)
   end
 end

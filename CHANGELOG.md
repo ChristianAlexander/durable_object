@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `object_keys` option to control how string keys within field values are converted when loading state from JSON
+  - `:strings` (default) - leaves keys as strings
+  - `:atoms!` - converts to existing atoms only (raises on unknown keys)
+  - `:atoms` - creates atoms as needed (use with caution)
+  - Configurable per-object in the DSL `options` block, or globally via `config :durable_object, object_keys: :atoms!`
+  - DSL setting takes precedence over application config
 - `DurableObject.Testing` module with ergonomic test helpers
   - `use DurableObject.Testing, repo: MyApp.Repo` sets up Ecto sandbox and imports helpers
   - Unit testing: `perform_handler/4` and `perform_alarm_handler/3` for testing handler logic in isolation
