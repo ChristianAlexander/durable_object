@@ -177,21 +177,38 @@ if Code.ensure_loaded?(Igniter) do
 
     defp extract_version_from_node(_), do: nil
 
-    defp extract_version_from_args([]) do
+    # Made public for testing - validates AST pattern matching for version extraction
+    @doc false
+    def extract_version_from_args([]) do
       # up() with no args - we can't know what version was current at the time
       :unversioned
     end
 
-    defp extract_version_from_args([args]) when is_list(args) do
+    @doc false
+    def extract_version_from_args([args]) when is_list(args) do
       # Look for version: N in the keyword list
+      # Sourceror wraps AST nodes in {:__block__, metadata, [value]} tuples,
+      # so we need to handle both standard Elixir AST and Sourceror's format
       Enum.find_value(args, fn
-        {{:version, _, nil}, version} when is_integer(version) -> version
-        {:version, version} when is_integer(version) -> version
-        _ -> nil
+        # Sourceror wrapped format: {:__block__, _, [:version]} for key, {:__block__, _, [N]} for value
+        {{:__block__, _, [:version]}, {:__block__, _, [version]}} when is_integer(version) ->
+          version
+
+        # Standard Elixir AST format
+        {{:version, _, nil}, version} when is_integer(version) ->
+          version
+
+        # Simple tuple format
+        {:version, version} when is_integer(version) ->
+          version
+
+        _ ->
+          nil
       end) || :unversioned
     end
 
-    defp extract_version_from_args(_), do: nil
+    @doc false
+    def extract_version_from_args(_), do: nil
 
     defp generate_upgrade_migration(igniter, repo, base_version, target_version) do
       body = """
