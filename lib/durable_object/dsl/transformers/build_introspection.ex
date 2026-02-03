@@ -22,6 +22,7 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
     handlers = Transformer.get_entities(dsl_state, [:handlers])
     hibernate_after = Transformer.get_option(dsl_state, [:options], :hibernate_after) || 300_000
     shutdown_after = Transformer.get_option(dsl_state, [:options], :shutdown_after)
+    object_keys = Transformer.get_option(dsl_state, [:options], :object_keys)
 
     # Build default state map from fields
     default_state =
@@ -37,6 +38,7 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
       |> Transformer.persist(:durable_object_hibernate_after, hibernate_after)
       |> Transformer.persist(:durable_object_shutdown_after, shutdown_after)
       |> Transformer.persist(:durable_object_default_state, default_state)
+      |> Transformer.persist(:durable_object_object_keys, object_keys)
 
     # Convert structs to a format that can be safely used in quoted expressions
     fields_data = Enum.map(fields, &Map.from_struct/1)
@@ -51,7 +53,8 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
           handlers_data: handlers_data,
           hibernate_after: hibernate_after,
           shutdown_after: shutdown_after,
-          default_state: default_state
+          default_state: default_state,
+          object_keys: object_keys
         ],
         quote do
           @doc false
@@ -70,6 +73,7 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
           def __durable_object__(:hibernate_after), do: unquote(hibernate_after)
           def __durable_object__(:shutdown_after), do: unquote(shutdown_after)
           def __durable_object__(:default_state), do: unquote(Macro.escape(default_state))
+          def __durable_object__(:object_keys), do: unquote(object_keys)
         end
       )
 
