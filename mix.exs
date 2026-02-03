@@ -43,7 +43,7 @@ defmodule DurableObject.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "guides/lifecycle.md", "CHANGELOG.md", "LICENSE"],
+      extras: ["README.md", "guides/lifecycle.md", "guides/testing.md", "CHANGELOG.md", "LICENSE"],
       before_closing_body_tag: fn type ->
         if type == :html do
           """
@@ -97,7 +97,8 @@ defmodule DurableObject.MixProject do
       {:horde, "~> 0.10", optional: true},
       {:oban, "~> 2.17", optional: true},
       {:igniter, "~> 0.5", optional: true},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:sourceror, "~> 1.7"}
     ]
   end
 end
