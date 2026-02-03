@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `mix durable_object.gen.migration` now correctly detects version parameters in existing migrations parsed by Sourceror/Igniter
+
 ## [0.2.0] - 2026-01-30
 
 ### Upgrading from 0.1.x
