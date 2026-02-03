@@ -7,7 +7,16 @@ defmodule DurableObject.Server do
 
   @default_hibernate_after :timer.minutes(5)
 
-  defstruct [:module, :object_id, :state, :shutdown_after, :shutdown_timer, :repo, :prefix]
+  defstruct [
+    :module,
+    :object_id,
+    :state,
+    :shutdown_after,
+    :shutdown_timer,
+    :repo,
+    :prefix,
+    :object_keys
+  ]
 
   # --- Client API ---
 
@@ -117,6 +126,7 @@ defmodule DurableObject.Server do
     repo = Keyword.get(opts, :repo)
     prefix = Keyword.get(opts, :prefix)
     default_state = module.__durable_object__(:default_state)
+    object_keys = get_object_keys_config(module)
 
     server = %__MODULE__{
       module: module,
@@ -125,7 +135,8 @@ defmodule DurableObject.Server do
       shutdown_after: shutdown_after,
       shutdown_timer: nil,
       repo: repo,
-      prefix: prefix
+      prefix: prefix,
+      object_keys: object_keys
     }
 
     if repo do
@@ -159,7 +170,7 @@ defmodule DurableObject.Server do
 
       {:ok, object} ->
         # Atomize string keys from JSON, merge with defaults for missing fields
-        loaded_state = atomize_keys(object.state)
+        loaded_state = atomize_keys(object.state, server.object_keys)
         merged_state = Map.merge(server.state, loaded_state)
         run_after_load(%{server | state: merged_state})
 
@@ -344,10 +355,40 @@ defmodule DurableObject.Server do
     end
   end
 
-  defp atomize_keys(map) when is_map(map) do
+  # Field names (from DSL) are atomized; object_keys controls keys within field values
+  defp atomize_keys(map, object_keys) when is_map(map) do
     Map.new(map, fn
-      {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
-      {key, value} -> {key, value}
+      {key, value} when is_binary(key) ->
+        {String.to_existing_atom(key), convert_value(value, object_keys)}
+
+      {key, value} ->
+        {key, convert_value(value, object_keys)}
     end)
+  end
+
+  defp convert_value(value, :strings), do: value
+
+  defp convert_value(map, strategy) when is_map(map) do
+    Map.new(map, fn
+      {key, value} when is_binary(key) ->
+        {convert_key(key, strategy), convert_value(value, strategy)}
+
+      {key, value} ->
+        {key, convert_value(value, strategy)}
+    end)
+  end
+
+  defp convert_value(list, strategy) when is_list(list) do
+    Enum.map(list, &convert_value(&1, strategy))
+  end
+
+  defp convert_value(value, _strategy), do: value
+
+  defp convert_key(key, :atoms!), do: String.to_existing_atom(key)
+  defp convert_key(key, :atoms), do: String.to_atom(key)
+
+  defp get_object_keys_config(module) do
+    module.__durable_object__(:object_keys) ||
+      Application.get_env(:durable_object, :object_keys, :strings)
   end
 end

@@ -76,6 +76,11 @@ defmodule DurableObject.Dsl.Extension do
         type: {:or, [:pos_integer, {:literal, :infinity}, nil]},
         default: nil,
         doc: "Stop process after this many ms of inactivity (nil = never)"
+      ],
+      object_keys: [
+        type: {:in, [:strings, :atoms!, :atoms]},
+        doc:
+          "How to convert string keys within field values when loading from JSON. :strings (default, no conversion), :atoms! (existing atoms only, raises otherwise), :atoms (creates atoms if needed)."
       ]
     ]
   }

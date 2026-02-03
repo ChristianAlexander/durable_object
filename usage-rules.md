@@ -110,6 +110,7 @@ end
 config :durable_object,
   repo: MyApp.Repo,
   registry_mode: :local,  # or :horde
+  object_keys: :strings,  # :strings | :atoms! | :atoms — map key conversion on load
   scheduler: DurableObject.Scheduler.Polling,
   scheduler_opts: [
     polling_interval: :timer.seconds(30),
