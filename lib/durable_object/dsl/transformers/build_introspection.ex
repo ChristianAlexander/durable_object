@@ -1,15 +1,16 @@
 defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
   @moduledoc """
-  Transformer that generates `__durable_object__/1` introspection functions.
+  Transformer that generates `__durable_object__/1` introspection functions
+  and a nested `State` struct.
 
-  This transformer runs at compile time and generates functions that allow
-  runtime introspection of the Durable Object's DSL configuration:
+  This transformer runs at compile time and generates:
 
+  - A `State` struct with fields and defaults from the DSL
   - `__durable_object__(:fields)` - Returns list of Field structs
   - `__durable_object__(:handlers)` - Returns list of Handler structs
   - `__durable_object__(:hibernate_after)` - Returns hibernate_after value
   - `__durable_object__(:shutdown_after)` - Returns shutdown_after value
-  - `__durable_object__(:default_state)` - Returns map with field defaults
+  - `__durable_object__(:default_state)` - Returns `%__MODULE__.State{}` struct
   """
 
   use Spark.Dsl.Transformer
@@ -24,11 +25,12 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
     shutdown_after = Transformer.get_option(dsl_state, [:options], :shutdown_after)
     object_keys = Transformer.get_option(dsl_state, [:options], :object_keys)
 
-    # Build default state map from fields
-    default_state =
-      fields
-      |> Enum.map(fn field -> {field.name, field.default} end)
-      |> Map.new()
+    # Build defstruct keyword list from fields (field_name => default)
+    struct_fields =
+      Enum.map(fields, fn field -> {field.name, field.default} end)
+
+    # Build default state map from fields (for persisted data compatibility)
+    default_state = Map.new(struct_fields)
 
     # Persist values for later retrieval via Spark.Dsl.Extension.get_persisted/3
     dsl_state =
@@ -44,6 +46,19 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
     fields_data = Enum.map(fields, &Map.from_struct/1)
     handlers_data = Enum.map(handlers, &Map.from_struct/1)
 
+    # Generate nested State struct module
+    dsl_state =
+      Transformer.eval(
+        dsl_state,
+        [struct_fields: struct_fields],
+        quote do
+          defmodule State do
+            @moduledoc false
+            defstruct unquote(Macro.escape(struct_fields))
+          end
+        end
+      )
+
     # Generate __durable_object__/1 functions
     dsl_state =
       Transformer.eval(
@@ -53,7 +68,6 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
           handlers_data: handlers_data,
           hibernate_after: hibernate_after,
           shutdown_after: shutdown_after,
-          default_state: default_state,
           object_keys: object_keys
         ],
         quote do
@@ -72,7 +86,7 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
 
           def __durable_object__(:hibernate_after), do: unquote(hibernate_after)
           def __durable_object__(:shutdown_after), do: unquote(shutdown_after)
-          def __durable_object__(:default_state), do: unquote(Macro.escape(default_state))
+          def __durable_object__(:default_state), do: %__MODULE__.State{}
           def __durable_object__(:object_keys), do: unquote(object_keys)
         end
       )

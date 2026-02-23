@@ -48,23 +48,23 @@ defmodule DurableObject.Behaviour do
   """
 
   @type handler_result ::
-          {:reply, result :: term(), new_state :: map()}
-          | {:reply, result :: term(), new_state :: map(),
+          {:reply, result :: term(), new_state :: struct() | map()}
+          | {:reply, result :: term(), new_state :: struct() | map(),
              {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
-          | {:noreply, new_state :: map()}
-          | {:noreply, new_state :: map(),
+          | {:noreply, new_state :: struct() | map()}
+          | {:noreply, new_state :: struct() | map(),
              {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
           | {:error, reason :: term()}
 
   @type alarm_result ::
-          {:noreply, new_state :: map()}
-          | {:noreply, new_state :: map(),
+          {:noreply, new_state :: struct() | map()}
+          | {:noreply, new_state :: struct() | map(),
              {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
           | {:error, reason :: term()}
 
   @type after_load_result ::
-          {:ok, new_state :: map()}
-          | {:ok, new_state :: map(),
+          {:ok, new_state :: struct() | map()}
+          | {:ok, new_state :: struct() | map(),
              {:schedule_alarm, name :: atom(), delay_ms :: pos_integer()}}
 
   @doc """
@@ -72,7 +72,7 @@ defmodule DurableObject.Behaviour do
 
   This callback is optional. If not defined, alarms are silently acknowledged.
   """
-  @callback handle_alarm(alarm_name :: atom(), state :: map()) :: alarm_result()
+  @callback handle_alarm(alarm_name :: atom(), state :: struct() | map()) :: alarm_result()
 
   @doc """
   Called after object state is loaded (or initialized with defaults for new objects).
@@ -92,7 +92,7 @@ defmodule DurableObject.Behaviour do
         end
       end
   """
-  @callback after_load(state :: map()) :: after_load_result()
+  @callback after_load(state :: struct() | map()) :: after_load_result()
 
   @optional_callbacks [handle_alarm: 2, after_load: 1]
 end

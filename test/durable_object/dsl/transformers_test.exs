@@ -32,9 +32,9 @@ defmodule DurableObject.Dsl.TransformersTest do
       assert BasicCounter.__durable_object__(:shutdown_after) == :timer.hours(1)
     end
 
-    test "generates __durable_object__(:default_state)" do
+    test "generates __durable_object__(:default_state) as struct" do
       default_state = BasicCounter.__durable_object__(:default_state)
-      assert default_state == %{count: 0}
+      assert %DurableObject.DslTest.BasicCounter.State{count: 0} = default_state
     end
 
     test "uses default hibernate_after when not specified" do
@@ -49,11 +49,11 @@ defmodule DurableObject.Dsl.TransformersTest do
     test "handles multiple fields in default_state" do
       default_state = ChatRoom.__durable_object__(:default_state)
 
-      assert default_state == %{
+      assert %DurableObject.DslTest.ChatRoom.State{
                messages: [],
                participants: [],
                created_at: nil
-             }
+             } = default_state
     end
 
     test "handles multiple handlers" do

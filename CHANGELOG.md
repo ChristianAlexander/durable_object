@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- State is now returned as a struct (`%MyApp.Counter.State{count: 0}`) instead of a plain atom-keyed map (`%{count: 0}`)
+  - The DSL automatically generates a nested `State` struct module from the declared fields and defaults
+  - `%{state | field: value}` update syntax continues to work unchanged
+  - State is persisted to the database as a plain JSON map (no `__struct__` key)
+  - Unknown keys in persisted state are silently dropped on load (forward-compatible with field removal)
+  - `get_persisted_state/3` in `DurableObject.Testing` now returns the module's `State` struct
+  - **Breaking:** `state[:field]` bracket access no longer works — use `state.field` dot access instead
+
 ## [0.2.1] - 2026-02-03
 
 ### Added

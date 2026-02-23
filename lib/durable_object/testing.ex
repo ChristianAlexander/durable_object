@@ -587,7 +587,7 @@ defmodule DurableObject.Testing do
       # Returns nil if not persisted
       assert nil == get_persisted_state(Counter, "nonexistent")
   """
-  @spec get_persisted_state(module(), String.t(), keyword()) :: map() | nil
+  @spec get_persisted_state(module(), String.t(), keyword()) :: struct() | map() | nil
   def get_persisted_state(module, object_id, opts \\ []) do
     {repo, prefix} = get_repo_and_prefix(opts)
 
@@ -596,7 +596,14 @@ defmodule DurableObject.Testing do
         nil
 
       state ->
-        Map.new(state, fn {k, v} -> {String.to_existing_atom(k), v} end)
+        atom_state = Map.new(state, fn {k, v} -> {String.to_existing_atom(k), v} end)
+        state_module = Module.concat(module, State)
+
+        if Code.ensure_loaded?(state_module) do
+          struct(state_module, atom_state)
+        else
+          atom_state
+        end
     end
   end
 
