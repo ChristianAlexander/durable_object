@@ -154,7 +154,11 @@ defmodule DurableObject.Server do
     case DurableObject.Storage.load(repo, object_type, object_id, prefix: prefix) do
       {:ok, nil} ->
         # New object - persist default state (already set in init)
-        case DurableObject.Storage.save(repo, object_type, object_id, server.state,
+        case DurableObject.Storage.save(
+               repo,
+               object_type,
+               object_id,
+               serialize_state(server.state),
                prefix: prefix
              ) do
           {:ok, _object} ->
@@ -169,9 +173,9 @@ defmodule DurableObject.Server do
         end
 
       {:ok, object} ->
-        # Atomize string keys from JSON, merge with defaults for missing fields
+        # Atomize string keys from JSON, apply to default struct
         loaded_state = atomize_keys(object.state, server.object_keys)
-        merged_state = Map.merge(server.state, loaded_state)
+        merged_state = struct(server.state, loaded_state)
         run_after_load(%{server | state: merged_state})
 
       {:error, reason} ->
@@ -303,11 +307,16 @@ defmodule DurableObject.Server do
     %{repo: repo, module: module, object_id: object_id, state: state, prefix: prefix} = server
     object_type = to_string(module)
 
-    case DurableObject.Storage.save(repo, object_type, object_id, state, prefix: prefix) do
+    case DurableObject.Storage.save(repo, object_type, object_id, serialize_state(state),
+           prefix: prefix
+         ) do
       {:ok, _object} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end
+
+  defp serialize_state(%_{} = state), do: Map.from_struct(state)
+  defp serialize_state(state) when is_map(state), do: state
 
   defp schedule_shutdown(%{shutdown_after: nil} = server), do: server
 
