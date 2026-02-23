@@ -45,6 +45,10 @@ defmodule DurableObject do
       {:ok, count} = MyApp.Counter.increment("user-123", 5)
       {:ok, count} = MyApp.Counter.get("user-123")
 
+  The DSL generates a `MyApp.Counter.State` struct with the declared fields
+  and defaults. State is passed to handlers as a struct, so `state.count`
+  and `%{state | count: new_count}` work as expected.
+
   ## Manual Usage (without DSL)
 
   You can also call Durable Objects directly without the DSL:

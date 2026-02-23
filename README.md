@@ -84,13 +84,12 @@ defmodule MyApp.Counter do
   end
 
   def handle_increment(amount \\ 1, state) do
-    new_count = Map.get(state, :count, 0) + amount
-    new_state = %{state | count: new_count, last_incremented_at: DateTime.utc_now()}
-    {:reply, new_count, new_state}
+    new_count = state.count + amount
+    {:reply, new_count, %{state | count: new_count, last_incremented_at: DateTime.utc_now()}}
   end
 
   def handle_get(state) do
-    {:reply, Map.get(state, :count, 0), state}
+    {:reply, state.count, state}
   end
 
   def handle_reset(state) do
