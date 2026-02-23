@@ -23,17 +23,17 @@ defmodule DurableObject.IntegrationTest do
     end
 
     def handle_increment(amount, state) do
-      new_count = Map.get(state, :count, 0) + amount
-      {:reply, new_count, Map.put(state, :count, new_count)}
+      new_count = state.count + amount
+      {:reply, new_count, %{state | count: new_count}}
     end
 
     def handle_decrement(amount, state) do
-      new_count = max(0, Map.get(state, :count, 0) - amount)
-      {:reply, new_count, Map.put(state, :count, new_count)}
+      new_count = max(0, state.count - amount)
+      {:reply, new_count, %{state | count: new_count}}
     end
 
     def handle_set_name(name, state) do
-      {:reply, :ok, Map.put(state, :name, name)}
+      {:reply, :ok, %{state | name: name}}
     end
 
     def handle_get(state) do
@@ -41,7 +41,7 @@ defmodule DurableObject.IntegrationTest do
     end
 
     def handle_reset(state) do
-      {:noreply, Map.put(state, :count, 0)}
+      {:noreply, %{state | count: 0}}
     end
   end
 
@@ -54,7 +54,9 @@ defmodule DurableObject.IntegrationTest do
     test "module defines __durable_object__/1 introspection" do
       assert TestCounter.__durable_object__(:hibernate_after) == 300_000
       assert TestCounter.__durable_object__(:shutdown_after) == nil
-      assert TestCounter.__durable_object__(:default_state) == %{count: 0, name: "unnamed"}
+
+      assert %TestCounter.State{count: 0, name: "unnamed"} =
+               TestCounter.__durable_object__(:default_state)
 
       fields = TestCounter.__durable_object__(:fields)
       assert length(fields) == 2
@@ -109,23 +111,23 @@ defmodule DurableObject.IntegrationTest do
       # Decrement
       {:ok, 7} = TestCounter.decrement(object_id, 3)
 
-      # Get state - note: Server starts with empty state, not DSL defaults
+      # Get state
       {:ok, state} = TestCounter.get(object_id)
-      assert state[:count] == 7
+      assert state.count == 7
 
       # Set name
       {:ok, :ok} = TestCounter.set_name(object_id, "my-counter")
 
       # Verify name was set
       {:ok, state} = TestCounter.get(object_id)
-      assert state[:name] == "my-counter"
+      assert state.name == "my-counter"
 
       # Reset
       {:ok, :noreply} = TestCounter.reset(object_id)
 
       # Verify reset
       {:ok, state} = TestCounter.get(object_id)
-      assert state[:count] == 0
+      assert state.count == 0
 
       # Cleanup
       DurableObject.stop(TestCounter, object_id)

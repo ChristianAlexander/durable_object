@@ -108,7 +108,7 @@ defmodule DurableObjectTest do
       id = unique_id("state")
       {:ok, _} = DurableObject.ensure_started(Counter, id)
       DurableObject.call(Counter, id, :increment_by, [42])
-      assert DurableObject.get_state(Counter, id) == %{count: 42}
+      assert %{count: 42} = DurableObject.get_state(Counter, id)
     end
   end
 
