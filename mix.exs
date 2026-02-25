@@ -34,7 +34,8 @@ defmodule DurableObject.MixProject do
       links: %{
         "GitHub" => @source_url
       },
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE CHANGELOG.md usage-rules.md)
+      files:
+        ~w(lib .formatter.exs mix.exs README.md LICENSE CHANGELOG.md usage-rules.md documentation)
     ]
   end
 
@@ -43,7 +44,7 @@ defmodule DurableObject.MixProject do
       main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "guides/lifecycle.md", "guides/testing.md", "CHANGELOG.md", "LICENSE"],
+      extras: extras(),
       before_closing_body_tag: fn type ->
         if type == :html do
           """
@@ -57,15 +58,51 @@ defmodule DurableObject.MixProject do
           """
         end
       end,
-      groups_for_extras: [
-        Guides: ~r/guides\/.*/
-      ],
+      groups_for_extras: groups_for_extras(),
+      groups_for_modules: groups_for_modules(),
       nest_modules_by_prefix: [
         DurableObject.Cluster,
         DurableObject.Dsl,
         DurableObject.Scheduler,
         DurableObject.Storage
+      ],
+      spark: [
+        mix_tasks: [
+          Formatting: [
+            Mix.Tasks.Spark.Formatter
+          ]
+        ]
       ]
+    ]
+  end
+
+  defp extras do
+    [
+      "README.md",
+      "guides/lifecycle.md",
+      "guides/testing.md",
+      "CHANGELOG.md",
+      "LICENSE"
+    ] ++ Path.wildcard("documentation/**/*.md")
+  end
+
+  defp groups_for_extras do
+    [
+      Guides: ~r/guides\/.*/,
+      "DSL Reference": ~r/documentation\/dsls\/.*/
+    ]
+  end
+
+  defp groups_for_modules do
+    [
+      "DSL & Core": [
+        DurableObject,
+        DurableObject.Dsl,
+        DurableObject.Dsl.Extension
+      ],
+      Storage: ~r/DurableObject\.Storage.*/,
+      Scheduling: ~r/DurableObject\.Scheduler.*/,
+      Internals: ~r/.*/
     ]
   end
 
@@ -82,7 +119,14 @@ defmodule DurableObject.MixProject do
 
   defp aliases do
     [
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"]
+      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      docs: [
+        "spark.cheat_sheets",
+        "docs",
+        "spark.replace_doc_links"
+      ],
+      "spark.cheat_sheets": "spark.cheat_sheets --extensions DurableObject.Dsl.Extension",
+      "spark.formatter": "spark.formatter --extensions DurableObject.Dsl.Extension"
     ]
   end
 

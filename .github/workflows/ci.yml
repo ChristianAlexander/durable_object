@@ -47,6 +47,11 @@ jobs:
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
 
+      - name: Check DSL documentation is up-to-date
+        env:
+          MIX_ENV: dev
+        run: mix spark.cheat_sheets --check
+
       - name: Run tests
         run: mix test
 

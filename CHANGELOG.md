@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Auto-generated DSL reference documentation via `mix spark.cheat_sheets`
+- `mix docs` alias now chains `spark.cheat_sheets` → `docs` → `spark.replace_doc_links`
+- CI check to verify DSL documentation is up-to-date (`mix spark.cheat_sheets --check`)
+
 ### Changed
 
 - State is now returned as a struct (`%MyApp.Counter.State{count: 0}`) instead of a plain atom-keyed map (`%{count: 0}`)
