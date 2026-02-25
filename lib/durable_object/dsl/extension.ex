@@ -92,6 +92,7 @@ defmodule DurableObject.Dsl.Extension do
       DurableObject.Dsl.Transformers.GenerateClient
     ],
     verifiers: [
+      DurableObject.Dsl.Verifiers.ValidateFields,
       DurableObject.Dsl.Verifiers.ValidateHandlers
     ]
 end
