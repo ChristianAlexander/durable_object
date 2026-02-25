@@ -9,12 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Built-in `state.id` field on every object's `State` struct, automatically set to the object's ID at init time
+  - Available in handlers, `after_load`, and `handle_alarm` callbacks
+  - Not persisted to the database — it's runtime metadata, not domain state
+  - Defaults to `nil` in test helpers like `perform_handler/4` (set it yourself if your handler reads `state.id`)
 - Auto-generated DSL reference documentation via `mix spark.cheat_sheets`
 - `mix docs` alias now chains `spark.cheat_sheets` → `docs` → `spark.replace_doc_links`
 - CI check to verify DSL documentation is up-to-date (`mix spark.cheat_sheets --check`)
 
 ### Changed
 
+- **Breaking:** `field :id` is now a reserved name and will raise a compile-time error. If you have an existing `field :id` in your state block, rename it (e.g., to `:external_id` or `:resource_id`) before upgrading.
 - State is now returned as a struct (`%MyApp.Counter.State{count: 0}`) instead of a plain atom-keyed map (`%{count: 0}`)
   - The DSL automatically generates a nested `State` struct module from the declared fields and defaults
   - `%{state | field: value}` update syntax continues to work unchanged

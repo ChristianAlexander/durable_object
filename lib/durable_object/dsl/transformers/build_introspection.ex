@@ -26,11 +26,16 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
     object_keys = Transformer.get_option(dsl_state, [:options], :object_keys)
 
     # Build defstruct keyword list from fields (field_name => default)
+    # Prepend built-in :id field (not user-declared, not persisted)
     struct_fields =
-      Enum.map(fields, fn field -> {field.name, field.default} end)
+      [{:id, nil} | Enum.map(fields, fn field -> {field.name, field.default} end)]
 
-    # Build default state map from fields (for persisted data compatibility)
-    default_state = Map.new(struct_fields)
+    # Build default state map from user-declared fields only (for persistence compatibility)
+    # :id is metadata injected at runtime, not domain state
+    default_state =
+      fields
+      |> Enum.map(fn field -> {field.name, field.default} end)
+      |> Map.new()
 
     # Persist values for later retrieval via Spark.Dsl.Extension.get_persisted/3
     dsl_state =

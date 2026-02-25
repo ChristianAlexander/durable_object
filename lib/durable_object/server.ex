@@ -126,6 +126,7 @@ defmodule DurableObject.Server do
     repo = Keyword.get(opts, :repo)
     prefix = Keyword.get(opts, :prefix)
     default_state = module.__durable_object__(:default_state)
+    default_state = %{default_state | id: object_id}
     object_keys = get_object_keys_config(module)
 
     server = %__MODULE__{
@@ -315,8 +316,8 @@ defmodule DurableObject.Server do
     end
   end
 
-  defp serialize_state(%_{} = state), do: Map.from_struct(state)
-  defp serialize_state(state) when is_map(state), do: state
+  defp serialize_state(%_{} = state), do: state |> Map.from_struct() |> Map.delete(:id)
+  defp serialize_state(state) when is_map(state), do: Map.delete(state, :id)
 
   defp schedule_shutdown(%{shutdown_after: nil} = server), do: server
 
