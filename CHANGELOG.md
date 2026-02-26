@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- DSL-configured `shutdown_after` and `hibernate_after` options were ignored at runtime — processes never shut down even when `shutdown_after` was set in the `options` block. The values were stored for introspection but never read during process startup. `Server.init/1` and `Server.start_link/1` now fall back to the module's DSL-configured values when options are not explicitly passed.
+
 ### Added
 
 - Built-in `state.id` field on every object's `State` struct, automatically set to the object's ID at init time

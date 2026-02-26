@@ -237,7 +237,49 @@ defmodule DurableObject.ServerTest do
     end
   end
 
+  defmodule ShutdownHandler do
+    use DurableObject
+
+    state do
+      field(:data, :string, default: nil)
+    end
+
+    handlers do
+      handler(:get)
+    end
+
+    options do
+      shutdown_after(50)
+    end
+
+    def handle_get(state) do
+      {:reply, state, state}
+    end
+  end
+
   describe "shutdown_after" do
+    test "DSL-configured shutdown_after is respected" do
+      id = unique_id("dsl-shutdown")
+
+      {:ok, pid} = Server.start_link(module: ShutdownHandler, object_id: id)
+
+      assert Process.alive?(pid)
+      Process.sleep(100)
+      refute Process.alive?(pid)
+    end
+
+    test "explicit shutdown_after overrides DSL config" do
+      id = unique_id("dsl-shutdown-override")
+
+      {:ok, pid} =
+        Server.start_link(module: ShutdownHandler, object_id: id, shutdown_after: 200)
+
+      Process.sleep(100)
+      assert Process.alive?(pid)
+      Process.sleep(150)
+      refute Process.alive?(pid)
+    end
+
     test "process shuts down after timeout" do
       {:ok, pid} =
         Server.start_link(
