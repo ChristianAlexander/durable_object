@@ -36,7 +36,13 @@ defmodule DurableObject.Server do
   def start_link(opts) do
     module = Keyword.fetch!(opts, :module)
     object_id = Keyword.fetch!(opts, :object_id)
-    hibernate_after = Keyword.get(opts, :hibernate_after, @default_hibernate_after)
+
+    hibernate_after =
+      Keyword.get_lazy(opts, :hibernate_after, fn ->
+        if function_exported?(module, :__durable_object__, 1),
+          do: module.__durable_object__(:hibernate_after),
+          else: @default_hibernate_after
+      end)
 
     GenServer.start_link(__MODULE__, opts,
       name: via_tuple(module, object_id),
@@ -122,7 +128,13 @@ defmodule DurableObject.Server do
   def init(opts) do
     module = Keyword.fetch!(opts, :module)
     object_id = Keyword.fetch!(opts, :object_id)
-    shutdown_after = Keyword.get(opts, :shutdown_after)
+
+    shutdown_after =
+      Keyword.get_lazy(opts, :shutdown_after, fn ->
+        if function_exported?(module, :__durable_object__, 1),
+          do: module.__durable_object__(:shutdown_after)
+      end)
+
     repo = Keyword.get(opts, :repo)
     prefix = Keyword.get(opts, :prefix)
     default_state = module.__durable_object__(:default_state)
