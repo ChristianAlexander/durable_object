@@ -59,6 +59,7 @@ defmodule DurableObject.Dsl.Transformers.BuildIntrospection do
         quote do
           defmodule State do
             @moduledoc false
+            @derive Jason.Encoder
             defstruct unquote(Macro.escape(struct_fields))
           end
         end
