@@ -78,5 +78,25 @@ defmodule DurableObject.Dsl.TransformersTest do
       get_participants = Enum.find(handlers, &(&1.name == :get_participants))
       assert get_participants.args == []
     end
+
+    test "State struct is JSON-encodable via Jason" do
+      state = %BasicCounter.State{id: "test-123", count: 42}
+      assert {:ok, json} = Jason.encode(state)
+      assert %{"id" => "test-123", "count" => 42} = Jason.decode!(json)
+    end
+
+    test "State struct with complex fields is JSON-encodable" do
+      state = %ChatRoom.State{
+        id: "room-1",
+        messages: [%{user: "alice", text: "hello"}],
+        participants: ["alice", "bob"],
+        created_at: nil
+      }
+
+      assert {:ok, json} = Jason.encode(state)
+      decoded = Jason.decode!(json)
+      assert decoded["id"] == "room-1"
+      assert length(decoded["participants"]) == 2
+    end
   end
 end

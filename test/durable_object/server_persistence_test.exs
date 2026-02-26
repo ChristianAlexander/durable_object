@@ -100,6 +100,42 @@ defmodule DurableObject.ServerPersistenceTest do
     end
   end
 
+  defmodule SerdeCounter do
+    use DurableObject
+
+    state do
+      field(:count, :integer, default: 0)
+    end
+
+    handlers do
+      handler(:increment)
+      handler(:get_state)
+    end
+
+    def handle_increment(state) do
+      {:reply, :ok, %{state | count: state.count + 1}}
+    end
+
+    def handle_get_state(state) do
+      {:reply, state, state}
+    end
+  end
+
+  describe "state serde through sqlite" do
+    test "state persists and rehydrates correctly" do
+      id = unique_id("serde")
+
+      {:ok, :ok} = SerdeCounter.increment(id, repo: TestRepo)
+      {:ok, :ok} = SerdeCounter.increment(id, repo: TestRepo)
+      {:ok, :ok} = SerdeCounter.increment(id, repo: TestRepo)
+      DurableObject.stop(SerdeCounter, id)
+
+      {:ok, state} = SerdeCounter.get_state(id, repo: TestRepo)
+      assert state.id == id
+      assert state.count == 3
+    end
+  end
+
   describe "without :repo option" do
     test "works without persistence" do
       id = unique_id("no-repo")

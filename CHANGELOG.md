@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Generated `State` structs now derive `Jason.Encoder`, fixing `Protocol.UndefinedError` when encoding state over Phoenix channels or other JSON serialization paths
+
 ## [0.3.0] - 2026-02-26
 
 ### Fixed
