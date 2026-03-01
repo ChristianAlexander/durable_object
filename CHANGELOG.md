@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-02-28
+
 ### Fixed
 
 - Horde compile-time detection now checks `Horde.Registry` instead of `Horde` — horde 0.10 has no root `Horde` module, so `Code.ensure_loaded?(Horde)` always returned `false`, preventing the Horde backend from being compiled even when the dependency was installed
@@ -169,7 +171,8 @@ The task automatically detects your current migration version and generates the 
 - `scheduler` - Alarm scheduler backend
 - `scheduler_opts` - Backend-specific options
 
-[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/ChristianAlexander/durable_object/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/ChristianAlexander/durable_object/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/ChristianAlexander/durable_object/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/ChristianAlexander/durable_object/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/ChristianAlexander/durable_object/compare/v0.2.0...v0.2.1
