@@ -42,7 +42,7 @@ defmodule DurableObject.Cluster do
   Returns the backend module for the current mode.
   """
   @spec impl() :: module()
-  if Code.ensure_loaded?(Horde) do
+  if Code.ensure_loaded?(Horde.Registry) do
     def impl do
       case mode() do
         :local -> DurableObject.Cluster.Local

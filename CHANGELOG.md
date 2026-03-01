@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Horde compile-time detection now checks `Horde.Registry` instead of `Horde` — horde 0.10 has no root `Horde` module, so `Code.ensure_loaded?(Horde)` always returned `false`, preventing the Horde backend from being compiled even when the dependency was installed
+
 ## [0.3.1] - 2026-02-26
 
 ### Fixed

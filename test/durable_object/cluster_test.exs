@@ -70,39 +70,17 @@ defmodule DurableObject.ClusterTest do
       end
     end
 
-    if Code.ensure_loaded?(Horde) do
-      test "returns Horde for horde mode" do
-        original = Application.get_env(:durable_object, :registry_mode)
+    test "returns Horde for horde mode" do
+      original = Application.get_env(:durable_object, :registry_mode)
 
-        try do
-          Application.put_env(:durable_object, :registry_mode, :horde)
-          assert Cluster.impl() == DurableObject.Cluster.Horde
-        after
-          if original do
-            Application.put_env(:durable_object, :registry_mode, original)
-          else
-            Application.delete_env(:durable_object, :registry_mode)
-          end
-        end
-      end
-    end
-
-    test "raises helpful error for horde mode without Horde installed" do
-      unless Code.ensure_loaded?(Horde) do
-        original = Application.get_env(:durable_object, :registry_mode)
-
-        try do
-          Application.put_env(:durable_object, :registry_mode, :horde)
-
-          assert_raise RuntimeError, ~r/Horde mode requires the :horde dependency/, fn ->
-            Cluster.impl()
-          end
-        after
-          if original do
-            Application.put_env(:durable_object, :registry_mode, original)
-          else
-            Application.delete_env(:durable_object, :registry_mode)
-          end
+      try do
+        Application.put_env(:durable_object, :registry_mode, :horde)
+        assert Cluster.impl() == DurableObject.Cluster.Horde
+      after
+        if original do
+          Application.put_env(:durable_object, :registry_mode, original)
+        else
+          Application.delete_env(:durable_object, :registry_mode)
         end
       end
     end
@@ -147,14 +125,35 @@ defmodule DurableObject.ClusterTest do
     end
   end
 
-  if Code.ensure_loaded?(Horde) do
-    describe "Horde backend" do
-      test "generates correct via_tuple format" do
-        via = DurableObject.Cluster.Horde.via_tuple(MyModule, "object-123")
+  describe "Horde backend" do
+    test "module is defined when horde dependency is available" do
+      assert Code.ensure_loaded?(Horde.Registry),
+             "Horde.Registry should be available (horde is in deps)"
 
-        assert {:via, Horde.Registry, {DurableObject.HordeRegistry, {MyModule, "object-123"}}} =
-                 via
+      assert {:module, DurableObject.Cluster.Horde} =
+               Code.ensure_loaded(DurableObject.Cluster.Horde)
+    end
+
+    test "impl/0 returns Horde backend in horde mode" do
+      original = Application.get_env(:durable_object, :registry_mode)
+
+      try do
+        Application.put_env(:durable_object, :registry_mode, :horde)
+        assert Cluster.impl() == DurableObject.Cluster.Horde
+      after
+        if original do
+          Application.put_env(:durable_object, :registry_mode, original)
+        else
+          Application.delete_env(:durable_object, :registry_mode)
+        end
       end
+    end
+
+    test "generates correct via_tuple format" do
+      via = DurableObject.Cluster.Horde.via_tuple(MyModule, "object-123")
+
+      assert {:via, Horde.Registry, {DurableObject.HordeRegistry, {MyModule, "object-123"}}} =
+               via
     end
   end
 

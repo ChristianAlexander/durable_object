@@ -1,4 +1,4 @@
-if Code.ensure_loaded?(Horde) do
+if Code.ensure_loaded?(Horde.Registry) do
   defmodule DurableObject.Cluster.Horde do
     @moduledoc """
     Horde-mode cluster backend using Horde.Registry and Horde.DynamicSupervisor.
