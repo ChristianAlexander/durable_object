@@ -1,4 +1,4 @@
-if Code.ensure_loaded?(Horde) do
+if Code.ensure_loaded?(Horde.Registry) do
   defmodule DurableObject.Singleton do
     @moduledoc """
     Cluster singleton utility for ensuring only one instance of a process
